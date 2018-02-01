@@ -33,9 +33,9 @@ cdef class VeoCtxt(object):
         cdef int i
         for i in xrange(len(args)):
             if isinstance(args[i], int):
-                a.arguments[i] = <uint64_t>args[i]
+                a.arguments[i] = <int64_t>args[i]
             elif isinstance(args[i], numbers.Integral):
-                a.arguments[i] = <uint64_t>args[i]
+                a.arguments[i] = <int64_t>args[i]
             elif isinstance(args[i], float):
                 a.arguments[i] = unpack("Q", pack("d", args[i]))[0]
             else:

@@ -1,14 +1,20 @@
 
 
+
 veo.so: veo.pyx libveo.pxd
 	CFLAGS="-I/opt/nec/ve/veos/include" \
 	LDFLAGS="-L/opt/nec/ve/veos/lib64" \
 	python setup.py build_ext -i
 
 test:
+	/opt/nec/ve/bin/ncc -shared -fpic -pthread -o libvesleep.so libvesleep.c
 	PYTHONPATH=. python test-veo.py
 
-clean:
-	rm -f $(OBJECTS) $(TARGET)
+test2:
+	/opt/nec/ve/bin/ncc -shared -fpic -pthread -o libvetest2.so libvetest2.c
+	PYTHONPATH=. python test2-veo.py
 
-.PHONY: all clean
+clean:
+	rm -f *.so; rm -rf build
+
+.PHONY: all clean test test2
