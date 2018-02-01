@@ -10,3 +10,6 @@ c=p.context_open()
 req=c.call_async(sym, 10)
 print "req=", req
 print "result = ", c.wait_result(req)
+print "deleting proc"
+del p
+print "finished"

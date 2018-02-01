@@ -1,6 +1,8 @@
 from libveo cimport *
 
 import os
+import numbers
+from struct import pack, unpack
 import numpy as np
 cimport numpy as np
 
@@ -18,14 +20,27 @@ cdef class VeoCtxt(object):
     def __dealloc__(self):
         veo_context_close(self.thr_ctxt)
 
-    def call_async(self, *args, **kwds):
-        cdef uint64_t sym = <uint64_t>args[0]
-        if len(args) > 9:
+    def call_async(self, uint64_t sym, *args, **kwds):
+        """
+        Asynchrounously call a function on VE.
+
+        
+        """
+        #cdef uint64_t sym = <uint64_t>args[0]
+        if len(args) > 8:
             raise ValueError("call_async: too many arguments (%d)" % len(args))
         cdef veo_call_args a
-        cdef int i = 0
-        for arg in args[1:]:
-            a.arguments[i] = <uint64_t>arg
+        cdef int i
+        for i in xrange(len(args)):
+            if isinstance(args[i], int):
+                a.arguments[i] = <uint64_t>args[i]
+            elif isinstance(args[i], numbers.Integral):
+                a.arguments[i] = <uint64_t>args[i]
+            elif isinstance(args[i], float):
+                a.arguments[i] = unpack("Q", pack("d", args[i]))[0]
+            else:
+                raise ValueError("cannot convert arg %d to call_async" % i)
+
         cdef uint64_t res = veo_call_async(self.thr_ctxt, sym, &a)
         if res == VEO_REQUEST_ID_INVALID:
             raise RuntimeError("veo_call_async failed")
@@ -64,6 +79,11 @@ cdef class VeoProc(object):
             raise RuntimeError("veo_proc_create(%d) failed" % nodeid)
         self.context = list()
 
+    def __dealloc__(self):
+        while len(self.context) > 0:
+            c = self.context.pop(0)
+            del c
+
     def load_library(self, char *libname):
         cdef uint64_t res = veo_load_library(self.proc_handle, libname)
         if res == 0UL:
@@ -77,12 +97,16 @@ cdef class VeoProc(object):
             raise RuntimeError("veo_get_sym '%s' failed" % symname)
         return res
 
-    def read_mem(self, np.ndarray[int, ndim=1] dst, uint64_t src, size_t size):
-        if veo_read_mem(self.proc_handle, <void *>&dst[0], src, size):
+    def read_mem(self, np.ndarray dst, uint64_t src, size_t size):
+        if dst.nbytes < size:
+            raise ValueError("read_mem dst array is smaller than required size")
+        if veo_read_mem(self.proc_handle, dst.data, src, size):
             raise RuntimeError("veo_read_mem failed")
 
-    def write_mem(self, uint64_t dst, np.ndarray[int, ndim=1] src, size_t size):
-        if veo_write_mem(self.proc_handle, dst, <void *>&src[0], size):
+    def write_mem(self, uint64_t dst, np.ndarray src, size_t size):
+        if src.nbytes < size:
+            raise ValueError("write_mem src array is smaller than transfer size")
+        if veo_write_mem(self.proc_handle, dst, src.data, size):
             raise RuntimeError("veo_write_mem failed")
 
     def context_open(self):
