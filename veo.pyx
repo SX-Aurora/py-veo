@@ -8,6 +8,14 @@ cimport numpy as np
 
 
 cdef class VeoCtxt(object):
+    """
+    VE Offloading thread context.
+
+    This is corresponding to one VE worker thread. Technically
+    it is cloned from the control thread started by the VeoProc
+    therefore all VeoCtxt instances share the same memory and
+    are controlled by their parent VeoProc.
+    """
     cdef veo_thr_ctxt *thr_ctxt
     cdef VeoProc proc
 
@@ -24,13 +32,17 @@ cdef class VeoCtxt(object):
         """
         Asynchrounously call a function on VE.
 
-        
+        A maximum of 8 arguments are allowed and passed in
+        registers.
+        Returns: the request ID of type uint64_t,
+        -1L in case of error.
         """
         #cdef uint64_t sym = <uint64_t>args[0]
-        if len(args) > 8:
+        if len(args) > VEO_MAX_NUM_ARGS:
             raise ValueError("call_async: too many arguments (%d)" % len(args))
         cdef veo_call_args a
         cdef int i
+        a.nargs = len(args)
         for i in xrange(len(args)):
             if isinstance(args[i], int):
                 a.arguments[i] = <int64_t>args[i]
@@ -83,6 +95,8 @@ cdef class VeoProc(object):
         while len(self.context) > 0:
             c = self.context.pop(0)
             del c
+        if veo_proc_destroy(self.proc_handle):
+            raise RuntimeError("veo_proc_destroy failed")
 
     def load_library(self, char *libname):
         cdef uint64_t res = veo_load_library(self.proc_handle, libname)
@@ -96,6 +110,16 @@ cdef class VeoProc(object):
         if res == 0UL:
             raise RuntimeError("veo_get_sym '%s' failed" % symname)
         return res
+
+    def alloc_mem(self, size_t size):
+        cdef uint64_t addr
+        if veo_alloc_mem(self.proc_handle, &addr, size):
+            raise RuntimeError("veo_alloc_mem failed")
+        return addr
+
+    def free_mem(self, uint64_t addr):
+        if veo_free_mem(self.proc_handle, addr):
+            raise RuntimeError("veo_free_mem failed")
 
     def read_mem(self, np.ndarray dst, uint64_t src, size_t size):
         if dst.nbytes < size:
@@ -120,4 +144,12 @@ cdef class VeoProc(object):
         del c
 
 
+cdef class VEMemPtr(object):
+    cdef readonly uint64_t addr
+    cdef readonly size_t size
 
+    def __init__(self, uint64_t addr, size_t size):
+        self.addr = addr
+        self.size = size
+
+    
