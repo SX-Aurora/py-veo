@@ -6,7 +6,7 @@ p=veo.VeoProc(0)
 ld=p.load_library("/home/focht/Tests/py-veo/libvetest2.so")
 sym=p.get_sym(ld, "print_args")
 print "print_args is at %s" % hex(sym)
-c=p.context_open()
+c=p.open_context()
 
 args = (-12, 123456, -1234L, 1234567L, 0.12345, 0.12345)
 print "sending args: %r" % (args,)
