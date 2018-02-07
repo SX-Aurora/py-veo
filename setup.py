@@ -12,10 +12,6 @@ ext_modules=[
     Extension("memptr",
               sources=["memptr.pyx"],
               include_dirs=[numpy.get_include()]
-    ),
-    Extension("ve_ptrace",
-              libraries=["veptrace"],
-              sources=["ve_ptrace.pyx"]
     )
 ]
 
