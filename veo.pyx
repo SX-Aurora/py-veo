@@ -16,8 +16,11 @@ cdef class VeoFunction(object):
     cdef uint64_t addr
     cdef args_fmt
     cdef ret_type
+    
     def __init__(self, uint64_t addr):
         self.addr = addr
+        self.args_fmt = None
+        self.ret_type = None
 
     def set_argsfmt(self, *args):
         self.args_fmt = args
@@ -31,10 +34,13 @@ cdef class VeoFunction(object):
 
         Returns: VeoRequest instance, None in case of error.
         """
+        if self.args_fmt is None:
+            raise RuntimeError("VeoFunction needs arguments format info before call()")
         if len(args) > VEO_MAX_NUM_ARGS:
             raise ValueError("call_async: too many arguments (%d)" % len(args))
+        
         cdef veo_call_args a
-        cdef int i
+        
         a.nargs = len(self.args_fmt)
         for i in xrange(len(self.args_fmt)):
             x = args[i]
