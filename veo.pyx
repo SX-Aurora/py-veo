@@ -14,13 +14,20 @@ cdef class VeoFunction(object):
     VE Offloaded function
     """
     cdef uint64_t addr
+    cdef name
     cdef args_fmt
     cdef ret_type
     
-    def __init__(self, uint64_t addr):
+    def __init__(self, uint64_t addr, name):
         self.addr = addr
+        self.name = name
         self.args_fmt = None
         self.ret_type = None
+
+    def __repr__(self):
+        out = "<%s object VE function %s%r at %s>" % \
+              (self.__class__.__name__, self.name, self.args_fmt, hex(id(self)))
+        return out
 
     def set_argsfmt(self, *args):
         self.args_fmt = args
@@ -28,7 +35,7 @@ cdef class VeoFunction(object):
     def set_rettype(self, rettype):
         self.ret_type = rettype
 
-    def call(self, VeoCtxt ctx, *args):
+    def __call__(self, VeoCtxt ctx, *args):
         """
         Asynchrounously call a function on VE.
 
@@ -67,7 +74,7 @@ cdef class VeoFunction(object):
         if res == VEO_REQUEST_ID_INVALID:
             return None
             #raise RuntimeError("veo_call_async failed")
-        return VeoRequest(ctx, res)
+        return VeoRequest(ctx, res, self.name, args)
 
 
 cdef class VeoRequest(object):
@@ -76,10 +83,17 @@ cdef class VeoRequest(object):
     """
     cdef uint64_t req
     cdef VeoCtxt ctx
+    cdef func
 
-    def __init__(self, ctx, req):
+    def __init__(self, ctx, req, func_name, func_args):
         self.ctx = ctx
         self.req = req
+        self.func = "%s%r" % (func_name, func_args)
+
+    def __repr__(self):
+        out = "<%s object call %s in context %r>" % \
+              (self.__class__.__name__, self.func, self.ctx)
+        return out
 
     def wait_result(self):
         cdef uint64_t res
@@ -213,7 +227,7 @@ cdef class VeoProc(object):
         res = veo_get_sym(self.proc_handle, lib_handle, symname)
         if res == 0UL:
             raise RuntimeError("veo_get_sym '%s' failed" % symname)
-        return VeoFunction(res)
+        return VeoFunction(res, <bytes>symname)
 
     def alloc_mem(self, size_t size):
         cdef uint64_t addr

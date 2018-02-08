@@ -11,7 +11,7 @@ f.set_argsfmt("int", "unsigned int", "long", "unsigned long", "double", "float")
 print f
 args = (-12, 123456, -1234L, 1234567L, 0.12345, 0.12345)
 print "sending args: %r" % (args,)
-req=f.call(c, *args)
+req=f(c, *args)
 print req
 r=req.wait_result()
 
