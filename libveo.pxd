@@ -25,7 +25,7 @@ cdef extern from "<ve_offload.h>":
         VEO_COMMAND_UNFINISHED
 
     cdef struct veo_call_args:
-        uint64_t arguments[VEO_MAX_NUM_ARGS]
+        int64_t arguments[VEO_MAX_NUM_ARGS]
         int nargs
 
     cdef struct veo_proc_handle:

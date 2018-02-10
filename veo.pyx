@@ -6,34 +6,72 @@ from struct import pack, unpack
 import numpy as np
 cimport numpy as np
 
-cdef zsign(x):
+include "conv_i64.pxi"
+
+cdef _proc_init_hook
+_proc_init_hook = None
+
+cpdef set_proc_init_hook(v):
+    """
+    Hook for a function that should be called as last in the
+    initialization of a VeoProc.
+
+    Usefull eg. for loading functions from a statically linked library.
+    """
+    global _proc_init_hook
+    _proc_init_hook = v
+
+
+cdef union U64:
+    uint64_t u64
+    int64_t i64
+    uint32_t u32[2]
+    int32_t i32[2]
+    uint16_t u16[4]
+    int16_t i16[4]
+    uint8_t u8[8]
+    int8_t i8[8]
+    float f32[2]
+    double d64
+
+
+cdef inline zsign(x):
     return 0 if x >= 0 else -1
+
 
 cdef class VeoFunction(object):
     """
     VE Offloaded function
     """
+    cdef readonly VeoLibrary lib
     cdef uint64_t addr
-    cdef name
-    cdef args_fmt
-    cdef ret_type
+    cdef readonly name
+    cdef readonly _args_type
+    cdef readonly _ret_type
+    cdef args_conv
+    cdef ret_conv
     
-    def __init__(self, uint64_t addr, name):
+    def __init__(self, lib, uint64_t addr, name):
+        self.lib = lib
         self.addr = addr
         self.name = name
-        self.args_fmt = None
-        self.ret_type = None
+        self.args_conv = None
+        self.ret_conv = conv_from_i64_func("int")
 
     def __repr__(self):
         out = "<%s object VE function %s%r at %s>" % \
-              (self.__class__.__name__, self.name, self.args_fmt, hex(id(self)))
+              (self.__class__.__name__, self.name, self._args_type, hex(id(self)))
         return out
 
-    def set_argsfmt(self, *args):
-        self.args_fmt = args
+    def args_type(self, *args):
+        self._args_type = args
+        self.args_conv = list()
+        for t in args:
+            self.args_conv.append(conv_to_i64_func(t))
 
-    def set_rettype(self, rettype):
-        self.ret_type = rettype
+    def ret_type(self, rettype):
+        self._ret_type = rettype
+        self.ret_conv = conv_from_i64_func(rettype)
 
     def __call__(self, VeoCtxt ctx, *args):
         """
@@ -41,40 +79,27 @@ cdef class VeoFunction(object):
 
         Returns: VeoRequest instance, None in case of error.
         """
-        if self.args_fmt is None:
+        if self._args_type is None:
             raise RuntimeError("VeoFunction needs arguments format info before call()")
         if len(args) > VEO_MAX_NUM_ARGS:
             raise ValueError("call_async: too many arguments (%d)" % len(args))
         
         cdef veo_call_args a
         
-        a.nargs = len(self.args_fmt)
-        for i in xrange(len(self.args_fmt)):
+        a.nargs = len(self.args_conv)
+        for i in xrange(len(self.args_conv)):
             x = args[i]
-            s = zsign(x)
-            f = self.args_fmt[i]
-            if f in ("char", "unsigned char"):
-                a.arguments[i] = unpack("Q", pack("cchi", x, s, s, s))[0]
-            elif f in ("short", "unsigned short"):
-                a.arguments[i] = unpack("Q", pack("hhi", x, s, s))[0]
-            elif f in ("int", "unsigned int"):
-                a.arguments[i] = unpack("Q", pack("ii", x, s))[0]
-            elif f in ("long", "unsigned long"):
-                a.arguments[i] = <int64_t>x
-            elif f == "float":
-                a.arguments[i] = unpack("Q", pack("if", 0, x))[0]
-            elif f == "double":
-                a.arguments[i] = unpack("Q", pack("d", x))[0]
-            elif f.endswith("*"):
-                a.arguments[i] = <int64_t>x
-            else:
-                raise ValueError("cannot convert arg %d to call_async" % i)
+            f = self.args_conv[i]
+            try:
+                a.arguments[i] = f(x)
+            except Exception as e:
+                raise ValueError("%r : args conversion: f = %r, x = %r" % (e, f, x))
 
         cdef uint64_t res = veo_call_async(ctx.thr_ctxt, self.addr, &a)
         if res == VEO_REQUEST_ID_INVALID:
             return None
             #raise RuntimeError("veo_call_async failed")
-        return VeoRequest(ctx, res, self.name, args)
+        return VeoRequest(ctx, res, self.ret_conv)
 
 
 cdef class VeoRequest(object):
@@ -83,16 +108,16 @@ cdef class VeoRequest(object):
     """
     cdef uint64_t req
     cdef VeoCtxt ctx
-    cdef func
+    cdef ret_conv
 
-    def __init__(self, ctx, req, func_name, func_args):
+    def __init__(self, ctx, req, ret_conv):
         self.ctx = ctx
         self.req = req
-        self.func = "%s%r" % (func_name, func_args)
+        self.ret_conv = ret_conv
 
     def __repr__(self):
-        out = "<%s object call %s in context %r>" % \
-              (self.__class__.__name__, self.func, self.ctx)
+        out = "<%s object req %d in context %r>" % \
+              (self.__class__.__name__, self.req, self.ctx)
         return out
 
     def wait_result(self):
@@ -103,7 +128,7 @@ cdef class VeoRequest(object):
         elif rc < 0:
             raise RuntimeError("wait_result command error on VE")
         # TODO: cast result
-        return res
+        return self.ret_conv(res)
 
     def peek_result(self):
         cdef uint64_t res
@@ -115,7 +140,51 @@ cdef class VeoRequest(object):
         elif rc == VEO_COMMAND_UNFINISHED:
             raise NameError("peek_result command unfinished")
         # TODO: cast result
+        return self.ret_conv(res)
+
+
+cdef class VeoLibrary(object):
+    """
+    Library loaded in a VE Proc.
+
+    The library object can be one loaded with dlopen
+    or correspond to the static symbols in the veorun VE binary.
+    """
+    cdef VeoProc proc
+    cdef name
+    cdef uint64_t lib_handle
+    cdef readonly dict func
+
+    def __init__(self, veo_proc, name, uint64_t handle):
+        self.proc = veo_proc
+        self.name = name
+        self.lib_handle = handle
+        self.func = dict()
+
+    def add_func(self, name, func):
+        self.func[name] = func
+
+    def get_func(self, name):
+        return self.func[name] if name in self.func else None
+
+    def del_func(self, name):
+        if name in self.func:
+            del self.func[name]
+
+    def get_sym(self, char *symname):
+        cdef uint64_t res
+        res = veo_get_sym(self.proc.proc_handle, self.lib_handle, symname)
+        if res == 0UL:
+            raise RuntimeError("veo_get_sym '%s' failed" % symname)
         return res
+
+    def find_function(self, char *symname):
+        cdef uint64_t res
+        res = veo_get_sym(self.proc.proc_handle, self.lib_handle, symname)
+        if res == 0UL:
+            raise RuntimeError("veo_get_sym '%s' failed" % symname)
+        func = VeoFunction(self, res, <bytes>symname)
+        return func
 
 
 cdef class VeoCtxt(object):
@@ -130,7 +199,7 @@ cdef class VeoCtxt(object):
     cdef veo_thr_ctxt *thr_ctxt
     cdef VeoProc proc
 
-    def __cinit__(self, VeoProc proc):
+    def __init__(self, VeoProc proc):
         self.proc = proc
         self.thr_ctxt = veo_context_open(proc.proc_handle)
         if self.thr_ctxt == NULL:
@@ -139,68 +208,23 @@ cdef class VeoCtxt(object):
     def __dealloc__(self):
         veo_context_close(self.thr_ctxt)
 
-    def call_async(self, uint64_t sym, *args, **kwds):
-        """
-        Asynchrounously call a function on VE.
-
-        A maximum of 8 arguments are allowed and passed in
-        registers.
-        Returns: the request ID of type uint64_t,
-        -1L in case of error.
-        """
-        #cdef uint64_t sym = <uint64_t>args[0]
-        if len(args) > VEO_MAX_NUM_ARGS:
-            raise ValueError("call_async: too many arguments (%d)" % len(args))
-        cdef veo_call_args a
-        cdef int i
-        a.nargs = len(args)
-        for i in xrange(len(args)):
-            if isinstance(args[i], int):
-                a.arguments[i] = <int64_t>args[i]
-            elif isinstance(args[i], numbers.Integral):
-                a.arguments[i] = <int64_t>args[i]
-            elif isinstance(args[i], float):
-                a.arguments[i] = unpack("Q", pack("d", args[i]))[0]
-            else:
-                raise ValueError("cannot convert arg %d to call_async" % i)
-
-        cdef uint64_t res = veo_call_async(self.thr_ctxt, sym, &a)
-        if res == VEO_REQUEST_ID_INVALID:
-            raise RuntimeError("veo_call_async failed")
-        return res
-
-    def wait_result(self, uint64_t req):
-        cdef uint64_t res
-        cdef int rc = veo_call_wait_result(self.thr_ctxt, req, &res)
-        if rc == -1:
-            raise Exception("wait_result command exception")
-        elif rc < 0:
-            raise RuntimeError("wait_result command error on VE")
-        return res
-
-    def peek_result(self, uint64_t req):
-        cdef uint64_t res
-        cdef int rc = veo_call_peek_result(self.thr_ctxt, req, &res)
-        if rc == VEO_COMMAND_EXCEPTION:
-            raise Exception("peek_result command exception")
-        elif rc == VEO_COMMAND_ERROR:
-            raise RuntimeError("peek_result command error on VE")
-        elif rc == VEO_COMMAND_UNFINISHED:
-            raise NameError("peek_result command unfinished")
-        return res
-
 
 cdef class VeoProc(object):
     cdef veo_proc_handle *proc_handle
-    cdef int nodeid
-    cdef list context
+    cdef readonly int nodeid
+    cdef readonly list context
+    cdef readonly dict lib
 
-    def __cinit__(self, int nodeid):
+    def __init__(self, int nodeid):
+        global _proc_init_hook
         self.nodeid = nodeid
+        self.context = list()
+        self.lib = dict()
         self.proc_handle = veo_proc_create(nodeid)
         if self.proc_handle == NULL:
             raise RuntimeError("veo_proc_create(%d) failed" % nodeid)
-        self.context = list()
+        if _proc_init_hook != None:
+            _proc_init_hook(self)
 
     def __dealloc__(self):
         while len(self.context) > 0:
@@ -213,21 +237,14 @@ cdef class VeoProc(object):
         cdef uint64_t res = veo_load_library(self.proc_handle, libname)
         if res == 0UL:
             raise RuntimeError("veo_load_library '%s' failed" % libname)
-        return res
+        lib = VeoLibrary(self, <bytes> libname, res)
+        self.lib[<bytes>libname] = lib
+        return lib
 
-    def get_sym(self, uint64_t lib_handle, char *symname):
-        cdef uint64_t res
-        res = veo_get_sym(self.proc_handle, lib_handle, symname)
-        if res == 0UL:
-            raise RuntimeError("veo_get_sym '%s' failed" % symname)
-        return res
-
-    def find_function(self, uint64_t lib_handle, char *symname):
-        cdef uint64_t res
-        res = veo_get_sym(self.proc_handle, lib_handle, symname)
-        if res == 0UL:
-            raise RuntimeError("veo_get_sym '%s' failed" % symname)
-        return VeoFunction(res, <bytes>symname)
+    def static_library(self):
+        lib = VeoLibrary(self, "__static__", 0UL)
+        self.lib["__static__"] = lib
+        return lib
 
     def alloc_mem(self, size_t size):
         cdef uint64_t addr
