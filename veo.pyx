@@ -154,28 +154,21 @@ cdef class VeoLibrary(object):
     cdef name
     cdef uint64_t lib_handle
     cdef readonly dict func
+    cdef readonly dict symbol
 
     def __init__(self, veo_proc, name, uint64_t handle):
         self.proc = veo_proc
         self.name = name
         self.lib_handle = handle
         self.func = dict()
+        self.symbol = dict()
 
-    def add_func(self, name, func):
-        self.func[name] = func
-
-    def get_func(self, name):
-        return self.func[name] if name in self.func else None
-
-    def del_func(self, name):
-        if name in self.func:
-            del self.func[name]
-
-    def get_sym(self, char *symname):
+    def get_symbol(self, char *symname):
         cdef uint64_t res
         res = veo_get_sym(self.proc.proc_handle, self.lib_handle, symname)
         if res == 0UL:
             raise RuntimeError("veo_get_sym '%s' failed" % symname)
+        self.symbol[<bytes>symname] = res
         return res
 
     def find_function(self, char *symname):
@@ -184,6 +177,7 @@ cdef class VeoLibrary(object):
         if res == 0UL:
             raise RuntimeError("veo_get_sym '%s' failed" % symname)
         func = VeoFunction(self, res, <bytes>symname)
+        self.func[<bytes>symname] = func
         return func
 
 
@@ -232,6 +226,17 @@ cdef class VeoProc(object):
             del c
         if veo_proc_destroy(self.proc_handle):
             raise RuntimeError("veo_proc_destroy failed")
+
+    def get_function(self, name):
+        """
+        Return a VeoFunction for function 'name' which
+        has been previously found in one of the loaded libraries.
+        Ruturn None if the function wasn't found.
+        """
+        for lib in self.lib:
+            if name in lib.func.keys():
+                return lib.func[name]
+        return None
 
     def load_library(self, char *libname):
         cdef uint64_t res = veo_load_library(self.proc_handle, libname)
