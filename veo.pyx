@@ -270,7 +270,6 @@ cdef class VeoProc(object):
     def read_mem(self, np.ndarray dst, VEMemPtr src, size_t size):
         if src.proc != self:
             raise ValueError("src memptr not owned by this proc!")
-        # TODO: check if owner is VeoLibrary
         if dst.nbytes < size:
             raise ValueError("read_mem dst array is smaller than required size")
         if veo_read_mem(self.proc_handle, dst.data, src.addr, size):
@@ -279,7 +278,6 @@ cdef class VeoProc(object):
     def write_mem(self, VEMemPtr dst, np.ndarray src, size_t size):
         if dst.proc != self:
             raise ValueError("dst memptr not owned by this proc!")
-        # TODO: check if owner is VeoLibrary
         if src.nbytes < size:
             raise ValueError("write_mem src array is smaller than transfer size")
         if veo_write_mem(self.proc_handle, dst.addr, src.data, size):
