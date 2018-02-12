@@ -9,13 +9,9 @@ ext_modules=[
               libraries=["veo"], # Unix-like specific
               include_dirs=[numpy.get_include()]
     ),
-    Extension("memptr",
-              sources=["memptr.pyx"],
-              include_dirs=[numpy.get_include()]
-    )
 ]
 
 setup(
-  name = "Veo",
+  name = "pyVeo",
   ext_modules = cythonize(ext_modules)
 )

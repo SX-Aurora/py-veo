@@ -56,7 +56,7 @@ cdef class VeoFunction(object):
         self.addr = addr
         self.name = name
         self.args_conv = None
-        self.ret_conv = conv_from_i64_func("int")
+        self.ret_conv = conv_from_i64_func(self.lib.proc, "int")
 
     def __repr__(self):
         out = "<%s object VE function %s%r at %s>" % \
@@ -67,11 +67,11 @@ cdef class VeoFunction(object):
         self._args_type = args
         self.args_conv = list()
         for t in args:
-            self.args_conv.append(conv_to_i64_func(t))
+            self.args_conv.append(conv_to_i64_func(self.lib.proc, t))
 
     def ret_type(self, rettype):
         self._ret_type = rettype
-        self.ret_conv = conv_from_i64_func(rettype)
+        self.ret_conv = conv_from_i64_func(self.lib.proc, rettype)
 
     def __call__(self, VeoCtxt ctx, *args):
         """
@@ -106,8 +106,8 @@ cdef class VeoRequest(object):
     """
     VE offload call request
     """
-    cdef uint64_t req
-    cdef VeoCtxt ctx
+    cdef readonly uint64_t req
+    cdef readonly VeoCtxt ctx
     cdef ret_conv
 
     def __init__(self, ctx, req, ret_conv):
@@ -150,7 +150,7 @@ cdef class VeoLibrary(object):
     The library object can be one loaded with dlopen
     or correspond to the static symbols in the veorun VE binary.
     """
-    cdef VeoProc proc
+    cdef readonly VeoProc proc
     cdef name
     cdef uint64_t lib_handle
     cdef readonly dict func
@@ -168,8 +168,9 @@ cdef class VeoLibrary(object):
         res = veo_get_sym(self.proc.proc_handle, self.lib_handle, symname)
         if res == 0UL:
             raise RuntimeError("veo_get_sym '%s' failed" % symname)
-        self.symbol[<bytes>symname] = res
-        return res
+        memptr = VEMemPtr(self.proc, res, 0)
+        self.symbol[<bytes>symname] = memptr
+        return memptr
 
     def find_function(self, char *symname):
         cdef uint64_t res
@@ -231,12 +232,15 @@ cdef class VeoProc(object):
         """
         Return a VeoFunction for function 'name' which
         has been previously found in one of the loaded libraries.
-        Ruturn None if the function wasn't found.
+        Return None if the function wasn't found.
         """
         for lib in self.lib:
             if name in lib.func.keys():
                 return lib.func[name]
         return None
+
+    def i64_to_memptr(self, int64_t x):
+        return VEMemPtr(self, ConvFromI64.to_ulong(x), 0)
 
     def load_library(self, char *libname):
         cdef uint64_t res = veo_load_library(self.proc_handle, libname)
@@ -255,22 +259,30 @@ cdef class VeoProc(object):
         cdef uint64_t addr
         if veo_alloc_mem(self.proc_handle, &addr, size):
             raise RuntimeError("veo_alloc_mem failed")
-        return addr
+        return VEMemPtr(self, addr, size)
 
-    def free_mem(self, uint64_t addr):
-        if veo_free_mem(self.proc_handle, addr):
+    def free_mem(self, memptr):
+        if memptr.proc != self:
+            raise ValueError("memptr not owned by this proc!")
+        if veo_free_mem(self.proc_handle, memptr.addr):
             raise RuntimeError("veo_free_mem failed")
 
-    def read_mem(self, np.ndarray dst, uint64_t src, size_t size):
+    def read_mem(self, np.ndarray dst, VEMemPtr src, size_t size):
+        if src.proc != self:
+            raise ValueError("src memptr not owned by this proc!")
+        # TODO: check if owner is VeoLibrary
         if dst.nbytes < size:
             raise ValueError("read_mem dst array is smaller than required size")
-        if veo_read_mem(self.proc_handle, dst.data, src, size):
+        if veo_read_mem(self.proc_handle, dst.data, src.addr, size):
             raise RuntimeError("veo_read_mem failed")
 
-    def write_mem(self, uint64_t dst, np.ndarray src, size_t size):
+    def write_mem(self, VEMemPtr dst, np.ndarray src, size_t size):
+        if dst.proc != self:
+            raise ValueError("dst memptr not owned by this proc!")
+        # TODO: check if owner is VeoLibrary
         if src.nbytes < size:
             raise ValueError("write_mem src array is smaller than transfer size")
-        if veo_write_mem(self.proc_handle, dst, src.data, size):
+        if veo_write_mem(self.proc_handle, dst.addr, src.data, size):
             raise RuntimeError("veo_write_mem failed")
 
     def open_context(self):
@@ -287,9 +299,24 @@ cdef class VeoProc(object):
 cdef class VEMemPtr(object):
     cdef readonly uint64_t addr
     cdef readonly size_t size
+    cdef readonly VeoProc proc
 
-    def __init__(self, uint64_t addr, size_t size):
+    def __init__(self, proc, uint64_t addr, size_t size):
+        """
+        Initialize a VE memory pointer object
+
+        Arguments:
+        proc: VeoProc who owns the memory
+        addr: the VEMVA virtual address of the memory pointer
+        site: size of the memory, if known. Known if allocated.
+        """
         self.addr = addr
         self.size = size
+        self.proc = proc
 
-    
+    def __repr__(self):
+        out = "<%s object VE addr: %s %s owner %r>" % \
+              (self.__class__.__name__,
+               hex(self.addr), ", size: %dbytes," % self.size if self.size != 0 else "",
+               self.owner)
+        return out
