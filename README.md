@@ -32,6 +32,8 @@ through Python objects.
 
 ## Python VEO API
 
+![PyVEO components](https://192.168.50.140/gogs/focht/py-veo/src/master/doc/pyveo_components.gif)
+
 ### VeoProc
 
 A `VeoProc` object corresponds to one running instance of the `veorun`
