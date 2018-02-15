@@ -9,7 +9,7 @@ cimport numpy as np
 include "conv_i64.pxi"
 
 cdef _proc_init_hook
-_proc_init_hook = None
+_proc_init_hook = list()
 
 cpdef set_proc_init_hook(v):
     """
@@ -19,7 +19,17 @@ cpdef set_proc_init_hook(v):
     Usefull eg. for loading functions from a statically linked library.
     """
     global _proc_init_hook
-    _proc_init_hook = v
+    _proc_init_hook.append(v)
+
+cpdef del_proc_init_hook(v):
+    """
+    Delete hook for a function that should be called as last in the
+    initialization of a VeoProc.
+
+    Usefull eg. for loading functions from a statically linked library.
+    """
+    global _proc_init_hook
+    _proc_init_hook.remove(v)
 
 
 cdef union U64:
@@ -218,8 +228,9 @@ cdef class VeoProc(object):
         self.proc_handle = veo_proc_create(nodeid)
         if self.proc_handle == NULL:
             raise RuntimeError("veo_proc_create(%d) failed" % nodeid)
-        if _proc_init_hook != None:
-            _proc_init_hook(self)
+        if len(_proc_init_hook) > 0:
+            for init_func in _proc_init_hook:
+                init_func(self)
 
     def __dealloc__(self):
         while len(self.context) > 0:

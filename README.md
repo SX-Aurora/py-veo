@@ -32,13 +32,15 @@ through Python objects.
 
 ## Python VEO API
 
-![PyVEO components](https://192.168.50.140/gogs/focht/py-veo/src/master/doc/pyveo_components.gif)
+![PyVEO components](https://192.168.50.140/gogs/focht/py-veo/src/master/doc/pyveo_components.jpg)
 
 ### VeoProc
 
 A `VeoProc` object corresponds to one running instance of the `veorun`
 VE program that controls one address space on the VE. The command
 ```python
+from veo import *
+
 proc = VeoProc(nodeid)
 ```
 creates a VEO process instance on the VE node `nodeid`. By default `VeoProc()`
@@ -75,8 +77,45 @@ was looked up before with the `find_library()` method of the `VeoLibrary` object
 - `lib` is a dict of the `VeoLibrary` objects loaded into the `VeoProc`.
 
 
+
 ### VeoLibrary
 
+Functions that need to be called on the VE must be loaded into the
+*VeoProc* by loading a shared library .so file into the process
+running on the VE. This is done by calling the `load_library()` method
+of the *VeoProc* instance. The result is an instance of the
+*VeoLibrary* class.
+
+Example:
+```python
+import os
+
+lib = proc.load_library(os.getcwd() + "/libvetest.so")
+```
+
+A special instance of *VeoLibrary* is the "static" library, that
+represents the functions and symbols statically linked with the
+*veorun* VE program that has been started by the *VeoProc*
+instance. It does not need to be loaded but can be accessed by the
+method `static_library()`.
+```python
+slib = proc.static_library()
+```
+
+The static library feature only needs to be used when the offloaded
+functions can not be linked dynamically or cannot be compiled with
+`-fpic`, for example because some of the libraries it uses is not
+available as dynamic library.
+
+**Methods:**
+- `get_symbol(name)`: find a symbol's address in the *VeoLibrary* and return it as a *VEMemPtr*.
+- `find_function(name)`: find a function in the current library and return it as an instance of *VeoFunction*.
+
+**Attributes:**
+- `name`: the name of the library, actually the full path from which it was loaded. The "static" library has the name `__static__`.
+- `proc`: the *VeoProc* instance to which the library belongs.
+- `func`: a `dict` containing all functions that were 'found' in the current library. The values are the corresponding *VeoFunction* instances.
+- `symbol`: a `dict` containing all symbols and their *VEMemPtr* that were searched and found in the current library.
 
 
 ### VeoFunction
@@ -87,5 +126,46 @@ was looked up before with the `find_library()` method of the `VeoLibrary` object
 
 ### VEMemPtr
 
+### Hooks
 
+Whenever a *VeoProc* object is created it will check for the existence
+of init hooks and call them at the end of the initialisation of the
+*VeoProc* object. Functions that are registered and called as an init
+hook must take one single argument: the *VeoProc* object. The are
+registered by calling *set_proc_init_hook()*:
+```python
+from veo import set_proc_init_hook
+
+def init_function(proc):
+    # do something that needs to be done automatically
+    # for each proc instance
+    #...
+
+set_proc_init_hook(init_function)
+```
+
+A practical use for the init hooks is the registration of the VE BLAS functions in *py-vecblas*:
+```python
+from veo import set_proc_init_hook
+
+def _init_cblas_funcs(p):
+    lib = p.static_library()
+    for k, v in _cblas_proto.items():
+        f = lib.find_function(k)
+        if f is not None:
+            fargs = v["args"]
+            f.args_type(*fargs)
+            f.ret_type(v["ret"])
+
+set_proc_init_hook(_init_cblas_funcs)
+```
+
+The registration of the VE BLAS functions needs to be done for every
+instance of *VeoProc* because each of the instances must find and
+register its own set of *VeoFunction*s. By registering the init hook
+the user will not need to load a library and find a function for each
+of the started *VeoProc* processes, i.e. for each of the VE cards in
+the system.
+
+## Build & Install
 
