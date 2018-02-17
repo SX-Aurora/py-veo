@@ -134,7 +134,7 @@ cdef class VeoRequest(object):
         cdef uint64_t res
         cdef int rc = veo_call_wait_result(self.ctx.thr_ctxt, self.req, &res)
         if rc == -1:
-            raise Exception("wait_result command exception")
+            raise ArithmeticError("wait_result command exception")
         elif rc < 0:
             raise RuntimeError("wait_result command error on VE")
         # TODO: cast result
@@ -144,7 +144,7 @@ cdef class VeoRequest(object):
         cdef uint64_t res
         cdef int rc = veo_call_peek_result(self.ctx.thr_ctxt, self.req, &res)
         if rc == VEO_COMMAND_EXCEPTION:
-            raise Exception("peek_result command exception")
+            raise ArithmeticError("peek_result command exception")
         elif rc == VEO_COMMAND_ERROR:
             raise RuntimeError("peek_result command error on VE")
         elif rc == VEO_COMMAND_UNFINISHED:
@@ -317,7 +317,7 @@ cdef class VEMemPtr(object):
         Arguments:
         proc: VeoProc who owns the memory
         addr: the VEMVA virtual address of the memory pointer
-        site: size of the memory, if known. Known if allocated.
+        size: size of the memory, if known. Known if allocated.
         """
         self.addr = addr
         self.size = size

@@ -32,7 +32,10 @@ through Python objects.
 
 ## Python VEO API
 
-![PyVEO components](https://192.168.50.140/gogs/focht/py-veo/src/master/doc/pyveo_components.jpg)
+**Overview**
+
+![PyVEO components](https://192.168.50.140/gogs/focht/py-veo/src/master/doc/pyveo_components.png)
+
 
 ### VeoProc
 
@@ -77,6 +80,27 @@ was looked up before with the `find_library()` method of the `VeoLibrary` object
 - `lib` is a dict of the `VeoLibrary` objects loaded into the `VeoProc`.
 
 
+### VeoCtxt
+
+VE Offloading thread context that corresponds to one VE worker
+thread. Technically it is cloned from the control thread started
+by the VeoProc therefore all VeoCtxt instances share the same
+memory and are controlled by their parent *VeoProc*.
+
+Each VE context has two queues, a command queue and a completion
+queue. Calling an offloaded VE function creates a request on the
+command queue, when the request is finished the result is added to the
+completion queue.
+
+**Methods:**
+
+*VeoCtxt* exposes no methods.
+
+**Attributes:**
+- `proc`: the *VeoProc* to which the context belongs.
+
+TODO: expose the PID/TID of a VeoCtxt such that we can pin it to certain cores.
+
 
 ### VeoLibrary
 
@@ -120,11 +144,83 @@ available as dynamic library.
 
 ### VeoFunction
 
-### VeoContext
+Offloaded functions located inside *VeoLibrary* objects are
+represented by instances of the *VeoFunction* class. This object
+logically "belongs" to the *VeoLibrary* in which the function was
+located by calling the `find_function()` method. The object contains
+the address of the function in the VE address space of the *VeoProc*
+process. If you have multiple processes that you use (for example
+because you use multiple VE cards on the same hosts), the function
+needs to be located in each of them, and you will need to handle
+multiple instances of *VeoFunction*, one for each *VeoProc*.
+
+Once "found" in a library, the *VeoFunction* instance is added to the
+`func` dict of the *VeoLibrary* with the function name as key. The
+method `get_function()` of *VeoProc* can search the function name
+inside the *VeoLibrary* hashes of all libraries loaded into the
+process.
+
+**Methods:**
+- `args_type(*args)`: sets the data types for the arguments of the function. The arguments must contain strings describing the base data types: "char", "short", "int", "long", "float", "double", preceeded by "unsigned" if needed, ending with a "*" if the data types represent pointers. "void *" is a valid data type as an argument. Arrays are not allowed. Structs should not be passed by value, only by reference.
+- `ret_type(rettype)`: specify the data type of the return value as a string. Same restrictions as for arguments apply. "void" is a valid return type.
+- `__call__(VeoCtxt ctx, *args)`: the call method allows to asynchronously offload a function call to the VE. `ctx` specifies a *VeoContext* in which the function should be called, `*args` are the arguments of the function, corresponding to the prototype set with the `args_type()` method. The `__call__` method allows one to use an instance of the class as if it were a function. It returns a *VeoRequest* object.
+
+**Attributes:**
+- `lib`: the *VeoLibrary* object to which the function belongs.
+- `name`: the name of the function inside the VE process.
+- `_args_type`: the argument types string list.
+- `_ret_type`: the return value type string.
+
+**Notes:**
+
+The arguments to a function must fit into a 64 bit
+register. It is possible to pass values (char, int, long, float,
+double) or pointers to memory locations inside the VE process. When
+passing something like a struct, the value of the struct must be
+transfered to VE memory separately, before calling the function, and
+the corresponding argument should point to that memory location.
+
+A maximum of 32 arguments to a function call are supported. When the
+number of arguments doesn't exceed 8, the arguments are passed in
+registers. For more than 8 arguments the values are passed on stack.
+
+Calling a function is asynchronous. The function and its arguments are
+queued in the command queue of the *VeoContext*.
+
 
 ### VeoRequest
 
+Each call to a *VeoFunction* returns a *VeoRequest* which helps track
+the status of the offloaded function call and retrieve its result.
+
+**Methods:**
+- `wait_result()`: wait until the request has been completed. Returns the result, converted to the data type as specified with the *VeoFunction* `ret_type()` method. Raises an `ArithmeticError` if the function raised an exception, and a `RuntimeError` if the execution failed in another way.
+- `peek_result()`: immediately returns after checking whether the request was completed or not. If the request was completed, it returns the result, like `wait_result()`. If the command did not finish, yet, it returns a `NameError` exception. The other error cases are the same as for `wait_result()`.
+
+**Attributes:**
+- `req`: the internal request ID inside the *VeoCtxt* command queue.
+- `ctx`: the *VeoCtxt* context this request belongs to.
+
+
 ### VEMemPtr
+
+A *VEMemPtr* object represents a pointer to a memory location on the
+VE, inside a *VeoProc* process. It can be created by allocating memory
+inside a *VeoProc* process, finding a symbol inside a *VeoLibrary*, or
+simply instantiating a VEMemPtr when the VE address is known.
+
+Example:
+```python
+ve_buff = proc.alloc_mem(10000)
+
+table = lib.get_symbol("table_inside_library")
+```
+
+**Attributes:**
+- `addr`: the memory location within the processes' VE virtual address space.
+- `size`: the size of the memory object. This is only know if the *VEMemPtr* was created by `alloc_mem()`. It is useful for debugging, has no function otherwise.
+- `proc`: the *VeoProc* instance to which the memory belongs.
+
 
 ### Hooks
 
