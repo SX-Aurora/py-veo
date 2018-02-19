@@ -3,12 +3,17 @@ import os
 import time
 
 def proc_hook(x):
-    print "hello %r" % x
+    print "hello %r, this is the proc_init_hook!" % x
+
+
+print "\nVEO test:"
+print "Call a trivial function as proc init_hook, call some trivial function to check that VEO works."
+print "Not opening a second VeoProc instance after the deletion of the first one due to a bug."
 
 veo.set_proc_init_hook(proc_hook)
 
 p=veo.VeoProc(0)
-lib=p.load_library("/home/focht/Tests/py-veo/libvetest2.so")
+lib=p.load_library(os.getcwd() + "/libvetest2.so")
 print lib
 f=lib.find_function("print_args")
 print f

@@ -1,6 +1,8 @@
 import veo
 import os
 
+print "\nVEO example:\nOpen a context and sleep 10s on the VE\n"
+
 p = veo.VeoProc(0)
 lib = p.load_library(os.getcwd() + "/libvesleep.so")
 print "lib = ", lib
