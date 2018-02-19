@@ -34,7 +34,7 @@ through Python objects.
 
 **Overview**
 
-![PyVEO components](https://192.168.50.140/gogs/focht/py-veo/src/master/doc/pyveo_components.png)
+![PyVEO components](doc/pyveo_components.png)
 
 
 ### VeoProc
