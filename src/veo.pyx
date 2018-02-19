@@ -327,5 +327,5 @@ cdef class VEMemPtr(object):
         out = "<%s object VE addr: %s %s owner %r>" % \
               (self.__class__.__name__,
                hex(self.addr), ", size: %dbytes," % self.size if self.size != 0 else "",
-               self.owner)
+               self.proc)
         return out
