@@ -5,6 +5,7 @@
 from libc.stdint cimport *
 
 cdef extern from "<ve_offload.h>":
+    enum: VEO_API_VERSION
     # maximum number of arguments to VEO calls (8)
     enum: VEO_MAX_NUM_ARGS
 
@@ -24,9 +25,13 @@ cdef extern from "<ve_offload.h>":
         VEO_COMMAND_ERROR
         VEO_COMMAND_UNFINISHED
 
-    cdef struct veo_call_args:
-        int64_t arguments[VEO_MAX_NUM_ARGS]
-        int nargs
+    enum veo_args_intent:
+        VEO_INTENT_IN
+        VEO_INTENT_INOUT
+        VEO_INTENT_OUT
+
+    cdef struct veo_args:
+        pass
 
     cdef struct veo_proc_handle:
         pass
@@ -34,6 +39,7 @@ cdef extern from "<ve_offload.h>":
     cdef struct veo_thr_ctxt:
         pass
 
+    int veo_api_version()
     veo_proc_handle *veo_proc_create(int)
     int veo_proc_destroy(veo_proc_handle *)
     uint64_t veo_load_library(veo_proc_handle *, const char *)
@@ -41,7 +47,15 @@ cdef extern from "<ve_offload.h>":
     veo_thr_ctxt *veo_context_open(veo_proc_handle *)
     int veo_context_close(veo_thr_ctxt *)
     int veo_get_context_state(veo_thr_ctxt *)
-    uint64_t veo_call_async(veo_thr_ctxt *, uint64_t, veo_call_args *)
+    veo_args *veo_args_alloc()
+    int veo_args_set_u64(veo_args *, int, uint64_t)
+    int veo_args_set_i64(veo_args *, int, int64_t)
+    int veo_args_set_float(veo_args *, int, float)
+    int veo_args_set_double(veo_args *, int, double)
+    int veo_args_set_stack(veo_args *, int, int, void *, size_t)
+    void veo_args_clear(veo_args *)
+    void veo_args_free(veo_args *)
+    uint64_t veo_call_async(veo_thr_ctxt *, uint64_t, veo_args *)
     int veo_call_peek_result(veo_thr_ctxt *, uint64_t, uint64_t *)
     int veo_call_wait_result(veo_thr_ctxt *, uint64_t, uint64_t *)
     int veo_alloc_mem(veo_proc_handle *, uint64_t *, size_t)

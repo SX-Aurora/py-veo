@@ -2,7 +2,8 @@ from libveo cimport *
 
 import os
 import numbers
-from struct import pack, unpack
+from cpython.buffer cimport PyBUF_SIMPLE, Py_buffer, PyObject_GetBuffer, \
+    PyObject_CheckBuffer, PyBuffer_Release
 import numpy as np
 cimport numpy as np
 
@@ -85,7 +86,19 @@ cdef class VeoFunction(object):
 
     def __call__(self, VeoCtxt ctx, *args):
         """
-        Asynchrounously call a function on VE.
+        @brief Asynchrounously call a function on VE.
+        @param ctx VEO context in which the function shall run
+        @param *args arguments of the called function
+
+        The function's argument types must be registered with f.args_type(), as well
+        as the return type with f.ret_type(). Passed arguments are converted to the
+        appropriate C types and used to prepare the VeoArgs object.
+
+        When things like structs or unions or arrays have to be passed by reference,
+        the selected argument type should be "void *" (or some other pointer) and
+        the passed argument should be wrapped into OnStack(buff, size), where buff
+        is a memoryview of the object and size its length. Look at
+        examples/pass_on_stack.py for an example.
 
         Returns: VeoRequest instance, None in case of error.
         """
@@ -93,19 +106,24 @@ cdef class VeoFunction(object):
             raise RuntimeError("VeoFunction needs arguments format info before call()")
         if len(args) > VEO_MAX_NUM_ARGS:
             raise ValueError("call_async: too many arguments (%d)" % len(args))
-        
-        cdef veo_call_args a
-        
-        a.nargs = len(self.args_conv)
+
+        a = VeoArgs()
         for i in xrange(len(self.args_conv)):
             x = args[i]
-            f = self.args_conv[i]
-            try:
-                a.arguments[i] = f(x)
-            except Exception as e:
-                raise ValueError("%r : args conversion: f = %r, x = %r" % (e, f, x))
+            if isinstance(x, OnStack):
+                try:
+                    a.set_stack(VEO_INTENT_IN, i, x.buff(), x.size())
+                except Exception as e:
+                    raise ValueError("%r : arg on stack: buff = %r, size = %r" %
+                                     (e, x.buff(), x.size()))
+            else:
+                f = self.args_conv[i]
+                try:
+                    a.set_i64(i, f(x))
+                except Exception as e:
+                    raise ValueError("%r : args conversion: f = %r, x = %r" % (e, f, x))
 
-        cdef uint64_t res = veo_call_async(ctx.thr_ctxt, self.addr, &a)
+        cdef uint64_t res = veo_call_async(ctx.thr_ctxt, self.addr, a.args)
         if res == VEO_REQUEST_ID_INVALID:
             return None
             #raise RuntimeError("veo_call_async failed")
@@ -133,10 +151,12 @@ cdef class VeoRequest(object):
     def wait_result(self):
         cdef uint64_t res
         cdef int rc = veo_call_wait_result(self.ctx.thr_ctxt, self.req, &res)
-        if rc == -1:
-            raise ArithmeticError("wait_result command exception")
+        if rc == VEO_COMMAND_EXCEPTION:
+            raise ArithmeticError("wait_result command exception on VE")
+        elif rc == VEO_COMMAND_ERROR:
+            raise RuntimeError("wait_result command handling error")
         elif rc < 0:
-            raise RuntimeError("wait_result command error on VE")
+            raise RuntimeError("wait_result command exception on VH")
         # TODO: cast result
         return self.ret_conv(res)
 
@@ -149,6 +169,8 @@ cdef class VeoRequest(object):
             raise RuntimeError("peek_result command error on VE")
         elif rc == VEO_COMMAND_UNFINISHED:
             raise NameError("peek_result command unfinished")
+        elif rc < 0:
+            raise RuntimeError("peek_result command exception on VH")
         # TODO: cast result
         return self.ret_conv(res)
 
@@ -191,6 +213,51 @@ cdef class VeoLibrary(object):
         self.func[<bytes>symname] = func
         return func
 
+cdef class OnStack(object):
+    cdef _buff
+    cdef _size
+    def __init__(self, buff, size=None):
+        self._buff = memoryview(buff).tobytes()
+        if size is not None:
+            self._size = size
+        else:
+            self._size = len(self._buff)
+
+    def buff(self):
+        return self._buff
+
+    def size(self):
+        return self._size
+
+cdef class VeoArgs(object):
+    cdef veo_args *args
+
+    def __init__(self):
+        self.args = veo_args_alloc()
+        if self.args == NULL:
+            raise RuntimeError("Failed to alloc veo_args")
+
+    def __dealloc__(self):
+        veo_args_free(self.args)
+
+    def set_i64(self, int argnum, int64_t val):
+        veo_args_set_i64(self.args, argnum, val)
+
+    def set_u64(self, int argnum, uint64_t val):
+        veo_args_set_u64(self.args, argnum, val)
+
+    def set_float(self, int argnum, float val):
+        veo_args_set_float(self.args, argnum, val)
+
+    def set_double(self, int argnum, double val):
+        veo_args_set_double(self.args, argnum, val)
+
+    def set_stack(self, veo_args_intent inout, int argnum,
+                  char *buff, size_t len):
+        veo_args_set_stack(self.args, inout, argnum, buff, len)
+
+    def clear(self):
+        veo_args_clear(self.args)
 
 cdef class VeoCtxt(object):
     """
@@ -278,21 +345,41 @@ cdef class VeoProc(object):
         if veo_free_mem(self.proc_handle, memptr.addr):
             raise RuntimeError("veo_free_mem failed")
 
-    def read_mem(self, np.ndarray dst, VEMemPtr src, size_t size):
+    def read_mem(self, dst, VEMemPtr src, size_t size):
         if src.proc != self:
             raise ValueError("src memptr not owned by this proc!")
-        if dst.nbytes < size:
-            raise ValueError("read_mem dst array is smaller than required size")
-        if veo_read_mem(self.proc_handle, dst.data, src.addr, size):
-            raise RuntimeError("veo_read_mem failed")
+        cdef Py_buffer data
+        if not PyObject_CheckBuffer(dst):
+            raise TypeError("dst must implement the buffer protocol!")
+        try:
+            PyObject_GetBuffer(dst, &data, PyBUF_SIMPLE)
+            
+            if data.len < size:
+                raise ValueError("read_mem dst buffer is smaller than required size (%d < %d)"
+                                 % (data.len, size))
+            
+            if veo_read_mem(self.proc_handle, data.buf, src.addr, size):
+                raise RuntimeError("veo_read_mem failed")
+        finally:
+            PyBuffer_Release(&data)
 
-    def write_mem(self, VEMemPtr dst, np.ndarray src, size_t size):
+    def write_mem(self, VEMemPtr dst, src, size_t size):
         if dst.proc != self:
             raise ValueError("dst memptr not owned by this proc!")
-        if src.nbytes < size:
-            raise ValueError("write_mem src array is smaller than transfer size")
-        if veo_write_mem(self.proc_handle, dst.addr, src.data, size):
-            raise RuntimeError("veo_write_mem failed")
+        cdef Py_buffer data
+        if not PyObject_CheckBuffer(src):
+            raise TypeError("src must implement the buffer protocol!")
+        try:
+            PyObject_GetBuffer(src, &data, PyBUF_SIMPLE)
+            
+            if data.len < size:
+                raise ValueError("write_mem src buffer is smaller than required size (%d < %d)"
+                                 % (data.len, size))
+            
+            if veo_write_mem(self.proc_handle, dst.addr, data.buf, size):
+                raise RuntimeError("veo_write_mem failed")
+        finally:
+            PyBuffer_Release(&data)
 
     def open_context(self):
         cdef VeoCtxt c

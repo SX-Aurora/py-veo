@@ -61,12 +61,12 @@ this `VeoProc`.
 the VE and returns a `VEMemPtr` object that points to it.
 - `free_mem(VEMemPtr memptr)` frees the VE memory pointed to by the
 `VEMemPtr` argument.
-- `read_mem(np.ndarray dst, VEMemPtr src, size_t size)` read memory from
-the VE memory buffer that *src* points to into a *numpy* array transfering
-*size* bytes.
-- `write_mem(VEMemPtr dst, np.ndarray src, size_t size)` write *size* bytes
-from the *src* numpy array to the VE memory buffer pointed to by the *dst*
-VEMemPtr.
+- `read_mem(dst, VEMemPtr src, size_t size)` read memory from
+the VE memory buffer that *src* points to into the *dst* object transfering
+*size* bytes. The *dst* python object must support the buffer protocol.
+- `write_mem(VEMemPtr dst, src, size_t size)` write *size* bytes
+from the *src* object to the VE memory buffer pointed to by the *dst*
+VEMemPtr. The *src* object must support the buffer protocol.
 - `open_context()` opens a worker thread context on the VE.
 - `close_context(VeoContext ctx)` closes a context on the VE.
 - `get_function(name)` searches for the function *name* in the `VeoFunction`
@@ -170,6 +170,16 @@ process.
 - `name`: the name of the function inside the VE process.
 - `_args_type`: the argument types string list.
 - `_ret_type`: the return value type string.
+
+The *__call__* method supports a special kind of argument: an instance
+of the class *OnStack*. The object `OnStack(buff, size)` will result
+in the buffer *buff* of size *size* being copied over onto the VE
+stack and behave like a temporary variable of the calling
+function. The corresponding argument will point to the address on the
+stack. Currently only arguments with intent "IN" are supported,
+i.e. they should only be read by the callee. They are lost after the
+VE function finishes and are overwritten by the following VEO function
+call.
 
 **Notes:**
 
