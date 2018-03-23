@@ -78,6 +78,8 @@ cdef class VeoFunction(object):
         self._args_type = args
         self.args_conv = list()
         for t in args:
+            if t == "void":
+                continue
             self.args_conv.append(conv_to_i64_func(self.lib.proc, t))
 
     def ret_type(self, rettype):
