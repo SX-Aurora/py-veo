@@ -62,3 +62,5 @@ cdef extern from "<ve_offload.h>":
     int veo_free_mem(veo_proc_handle *, uint64_t)
     int veo_read_mem(veo_proc_handle *, void *, uint64_t, size_t)
     int veo_write_mem(veo_proc_handle *, uint64_t, void *, size_t)
+    uint64_t veo_async_read_mem(veo_thr_ctxt *, void *, uint64_t, size_t)
+    uint64_t veo_async_write_mem(veo_thr_ctxt *, uint64_t, void *, size_t)

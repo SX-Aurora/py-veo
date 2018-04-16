@@ -93,8 +93,14 @@ command queue, when the request is finished the result is added to the
 completion queue.
 
 **Methods:**
-
-*VeoCtxt* exposes no methods.
+- `async_read_mem(dst, VEMemPtr src, size_t size)` queue a request to
+read memory from the VE memory buffer that *src* points to into the
+*dst* object transfering *size* bytes. The *dst* python object must
+support the buffer protocol.
+- `async_write_mem(VEMemPtr dst, src, size_t size)` queue a request to
+write *size* bytes from the *src* object to the VE memory buffer
+pointed to by the *dst* VEMemPtr. The *src* object must support the
+buffer protocol.
 
 **Attributes:**
 - `proc`: the *VeoProc* to which the context belongs.

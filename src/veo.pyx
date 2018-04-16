@@ -1,4 +1,8 @@
 from libveo cimport *
+_veo_api_version = veo_api_version()
+if _veo_api_version < 3:
+    raise ImportError("VEO API Version must be at least 3! The system uses version %d."
+                      % _veo_api_version)
 
 import os
 import numbers
@@ -177,6 +181,36 @@ cdef class VeoRequest(object):
         return self.ret_conv(res)
 
 
+cdef class VeoMemRequest(VeoRequest):
+    cdef Py_buffer data
+
+    @staticmethod
+    cdef create(VeoCtxt ctx, req, Py_buffer data):
+        vmr = VeoMemRequest(ctx, req, conv_from_i64_func(ctx.proc, "int"))
+        vmr.data = data
+        return vmr
+
+    def wait_result(self):
+        try:
+            res = super(VeoMemRequest, self).wait_result()
+        except Exception as e:
+            raise e
+        finally:
+            PyBuffer_Release(&self.data)
+        return res
+
+    def peek_result(self):
+        try:
+            res = super(VeoMemRequest, self).peek_result()
+            PyBuffer_Release(&self.data)
+            return res
+        except NameError as e:
+            raise e
+        except Exception as e:
+            PyBuffer_Release(&self.data)
+            raise e
+
+
 cdef class VeoLibrary(object):
     """
     Library loaded in a VE Proc.
@@ -281,6 +315,48 @@ cdef class VeoCtxt(object):
 
     def __dealloc__(self):
         veo_context_close(self.thr_ctxt)
+
+    def async_read_mem(self, dst, VEMemPtr src, size_t size):
+        if src.proc != self.proc:
+            raise ValueError("src memptr not owned by this proc!")
+        cdef Py_buffer data
+        cdef uint64_t req
+        if not PyObject_CheckBuffer(dst):
+            raise TypeError("dst must implement the buffer protocol!")
+
+        PyObject_GetBuffer(dst, &data, PyBUF_SIMPLE)
+            
+        if data.len < size:
+            PyBuffer_Release(&data)
+            raise ValueError("read_mem dst buffer is smaller than required size (%d < %d)"
+                             % (data.len, size))
+            
+        req = veo_async_read_mem(self.thr_ctxt, data.buf, src.addr, size)
+        if req == VEO_REQUEST_ID_INVALID:
+            PyBuffer_Release(&data)
+            raise RuntimeError("veo_async_read_mem failed")
+        return VeoMemRequest.create(self, req, data)
+
+    def async_write_mem(self, VEMemPtr dst, src, size_t size):
+        if dst.proc != self.proc:
+            raise ValueError("dst memptr not owned by this proc!")
+        cdef Py_buffer data
+        cdef uint64_t req
+        if not PyObject_CheckBuffer(src):
+            raise TypeError("src must implement the buffer protocol!")
+
+        PyObject_GetBuffer(src, &data, PyBUF_SIMPLE)
+            
+        if data.len < size:
+            PyBuffer_Release(&data)
+            raise ValueError("write_mem src buffer is smaller than required size (%d < %d)"
+                             % (data.len, size))
+            
+        req = veo_async_write_mem(self.thr_ctxt, dst.addr, data.buf, size)
+        if req == VEO_REQUEST_ID_INVALID:
+            PyBuffer_Release(&data)
+            raise RuntimeError("veo_write_mem failed")
+        return VeoMemRequest.create(self, req, data)
 
 
 cdef class VeoProc(object):

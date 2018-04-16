@@ -13,7 +13,7 @@ ext_modules=[
 
 setup(
     name = "pyVeo",
-    version = "0.1",
+    version = "0.2",
     ext_modules = cythonize(ext_modules),
     packages = ["veo"],
     author = "Erich Focht",
