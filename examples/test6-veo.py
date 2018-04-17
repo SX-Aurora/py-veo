@@ -5,7 +5,7 @@ from cffi import FFI
 print "\nVEO test:"
 print "Pass a cffi built structure to the VE as argument on the stack."
 print "Sum the elements and multiply with a factor. Correct result is 30."
-
+print "\n"
 
 p = veo.VeoProc(0)
 lib = p.load_library(os.getcwd() + "/libvetest6.so")

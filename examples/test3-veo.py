@@ -9,6 +9,7 @@ def proc_hook(x):
 print "\nVEO test:"
 print "Call a trivial function as proc init_hook, call some trivial function to check that VEO works."
 print "Not opening a second VeoProc instance after the deletion of the first one due to a bug."
+print "\n"
 
 veo.set_proc_init_hook(proc_hook)
 

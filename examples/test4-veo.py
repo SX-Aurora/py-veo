@@ -6,6 +6,7 @@ import numpy as np
 print "\nVEO test:"
 print "Allocate a buffer on VE, copy a string to it."
 print "Display its address as seen on the VE and display the content as string."
+print "\n"
 
 def round(n, r):
     return int(r * ((n + (r - 1)) / r))

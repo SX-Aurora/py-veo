@@ -6,7 +6,7 @@ print "\nVEO test:"
 print "Pass a string on stack to VE function. Function mallocs a buffer"
 print "and copies the string into the buffer. The VH program copies the"
 print "buffer content back and prints it."
-
+print "\n"
 
 p = veo.VeoProc(0)
 lib = p.load_library(os.getcwd() + "/libvetest5.so")
