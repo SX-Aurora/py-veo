@@ -5,7 +5,7 @@
 from libc.stdint cimport *
 
 cdef extern from "<ve_offload.h>":
-    enum: VEO_API_VERSION
+    ##enum: VEO_API_VERSION
     # maximum number of arguments to VEO calls (8)
     enum: VEO_MAX_NUM_ARGS
 
@@ -39,7 +39,7 @@ cdef extern from "<ve_offload.h>":
     cdef struct veo_thr_ctxt:
         pass
 
-    int veo_api_version()
+    #int veo_api_version()
     veo_proc_handle *veo_proc_create(int)
     int veo_proc_destroy(veo_proc_handle *)
     uint64_t veo_load_library(veo_proc_handle *, const char *)

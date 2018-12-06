@@ -1,8 +1,12 @@
 from libveo cimport *
-_veo_api_version = veo_api_version()
-if _veo_api_version < 3:
-    raise ImportError("VEO API Version must be at least 3! The system uses version %d."
-                      % _veo_api_version)
+
+#
+# EF: commented out veo_api_version until it finds its way into the VEO mainline.
+#
+#_veo_api_version = veo_api_version()
+#if _veo_api_version < 3:
+#    raise ImportError("VEO API Version must be at least 3! The system uses version %d."
+#                      % _veo_api_version)
 
 import os
 import numbers
