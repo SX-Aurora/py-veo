@@ -6,7 +6,7 @@ VECC = /opt/nec/ve/bin/ncc
 VEFTN = /opt/nec/ve/bin/nfort
 VECOPTS = -g -shared -fpic -pthread
 
-all: test test2 test3 test4 test5 test6 test7 test8
+all: test test2 test3 test4 test5 test6 test7 test8 test9
 
 test: libvesleep.so
 	PYTHONPATH=.. python test-veo.py
@@ -31,6 +31,9 @@ test7: libvetest7.so
 
 test8: libvetest8.so
 	PYTHONPATH=.. python test8-veo.py
+
+test9: libvetest8.so
+	PYTHONPATH=.. python test9-veo.py
 
 libvesleep.so: libvesleep.c
 	$(VECC) $(VECOPTS) -o libvesleep.so libvesleep.c

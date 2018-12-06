@@ -1,6 +1,6 @@
 function mod_buff(arr, res, n)
     integer, dimension(n), intent(in) :: arr
-    integer, dimension(n), intent(inout) :: res
+    integer, dimension(n), intent(out) :: res
     integer i, mod_buff
     mod_buff = 0
     do i = 1, n
