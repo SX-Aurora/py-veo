@@ -5,27 +5,30 @@
 from libc.stdint cimport *
 
 cdef extern from "<ve_offload.h>":
+
+    ## uncomment until API_VERSION comes back into mainline VEO
     ##enum: VEO_API_VERSION
-    # maximum number of arguments to VEO calls (8)
-    enum: VEO_MAX_NUM_ARGS
+
+    # maximum number of arguments to VEO calls (32)
+    cdef enum: VEO_MAX_NUM_ARGS
 
     # invalid request ID
-    enum: VEO_REQUEST_ID_INVALID
+    cdef enum: VEO_REQUEST_ID_INVALID
 
-    enum veo_context_state:
+    cdef enum veo_context_state:
         VEO_STATE_UNKNOWN
         VEO_STATE_RUNNING
         VEO_STATE_SYSCALL
         VEO_STATE_BLOCKED
         VEO_STATE_EXIT
 
-    enum veo_command_state:
+    cdef enum veo_command_state:
         VEO_COMMAND_OK
         VEO_COMMAND_EXCEPTION
         VEO_COMMAND_ERROR
         VEO_COMMAND_UNFINISHED
 
-    enum veo_args_intent:
+    cdef enum veo_args_intent:
         VEO_INTENT_IN
         VEO_INTENT_INOUT
         VEO_INTENT_OUT
@@ -66,3 +69,4 @@ cdef extern from "<ve_offload.h>":
     int veo_write_mem(veo_proc_handle *, uint64_t, void *, size_t)
     uint64_t veo_async_read_mem(veo_thr_ctxt *, void *, uint64_t, size_t)
     uint64_t veo_async_write_mem(veo_thr_ctxt *, uint64_t, void *, size_t)
+

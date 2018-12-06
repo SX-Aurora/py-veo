@@ -20,6 +20,27 @@ include "conv_i64.pxi"
 cdef _proc_init_hook
 _proc_init_hook = list()
 
+#
+# Re-declaring the enums here because they're otherwise not visible in Python
+#
+cpdef enum _veo_args_intent:
+    INTENT_IN = VEO_INTENT_IN
+    INTENT_INOUT = VEO_INTENT_INOUT
+    INTENT_OUT = VEO_INTENT_OUT
+
+cpdef enum _veo_context_state:
+    STATE_UNKNOWN = VEO_STATE_UNKNOWN
+    STATE_RUNNING = VEO_STATE_RUNNING
+    STATE_SYSCALL = VEO_STATE_SYSCALL
+    STATE_BLOCKED = VEO_STATE_BLOCKED
+    STATE_EXIT = VEO_STATE_EXIT
+
+cpdef enum _veo_command_state:
+    COMMAND_OK = VEO_COMMAND_OK
+    COMMAND_EXCEPTION = VEO_COMMAND_EXCEPTION
+    COMMAND_ERROR = VEO_COMMAND_ERROR
+    COMMAND_UNFINISHED = VEO_COMMAND_UNFINISHED
+
 cpdef set_proc_init_hook(v):
     """
     Hook for a function that should be called as last in the
@@ -122,7 +143,7 @@ cdef class VeoFunction(object):
             x = args[i]
             if isinstance(x, OnStack):
                 try:
-                    a.set_stack(VEO_INTENT_IN, i, x.buff(), x.size())
+                    a.set_stack(x.scope(), i, x.buff(), x.size())
                 except Exception as e:
                     raise ValueError("%r : arg on stack: buff = %r, size = %r" %
                                      (e, x.buff(), x.size()))
@@ -260,21 +281,32 @@ cdef class VeoLibrary(object):
         self.func[<bytes>symname] = func
         return func
 
+
 cdef class OnStack(object):
     cdef _buff
     cdef _size
-    def __init__(self, buff, size=None):
-        self._buff = memoryview(buff).tobytes()
+    cdef veo_args_intent _inout
+
+    def __init__(self, buff, size=None, inout=VEO_INTENT_IN):
+        if hasattr(buff, "tobytes"):
+            self._buff = buff.tobytes()
+        else:
+            self._buff = memoryview(buff).tobytes()
         if size is not None:
             self._size = size
         else:
             self._size = len(self._buff)
+        self._inout = inout
 
     def buff(self):
         return self._buff
 
+    def scope(self):
+        return self._inout
+
     def size(self):
         return self._size
+
 
 cdef class VeoArgs(object):
     cdef veo_args *args
@@ -505,3 +537,4 @@ cdef class VEMemPtr(object):
                hex(self.addr), ", size: %dbytes," % self.size if self.size != 0 else "",
                self.proc)
         return out
+
