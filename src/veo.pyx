@@ -137,7 +137,12 @@ cdef class VeoFunction(object):
         if res == VEO_REQUEST_ID_INVALID:
             return None
             #raise RuntimeError("veo_call_async failed")
-        return VeoRequest(ctx, res, self.ret_conv)
+        #
+        # We need to pass the args over because they are needed when
+        # collecting the result. If they go out of scope and are freed,
+        # we'll get a SIGSEGV!
+        #
+        return VeoRequest(ctx, a, res, self.ret_conv)
 
 
 cdef class VeoRequest(object):
@@ -147,10 +152,12 @@ cdef class VeoRequest(object):
     cdef readonly uint64_t req
     cdef readonly VeoCtxt ctx
     cdef ret_conv
+    cdef VeoArgs args
 
-    def __init__(self, ctx, req, ret_conv):
+    def __init__(self, ctx, args, req, ret_conv):
         self.ctx = ctx
         self.req = req
+        self.args = args
         self.ret_conv = ret_conv
 
     def __repr__(self):
@@ -190,7 +197,7 @@ cdef class VeoMemRequest(VeoRequest):
 
     @staticmethod
     cdef create(VeoCtxt ctx, req, Py_buffer data):
-        vmr = VeoMemRequest(ctx, req, conv_from_i64_func(ctx.proc, "int"))
+        vmr = VeoMemRequest(ctx, VeoArgs(), req, conv_from_i64_func(ctx.proc, "int"))
         vmr.data = data
         return vmr
 

@@ -50,6 +50,8 @@ cdef extern from "<ve_offload.h>":
     veo_args *veo_args_alloc()
     int veo_args_set_u64(veo_args *, int, uint64_t)
     int veo_args_set_i64(veo_args *, int, int64_t)
+    int veo_args_set_u32(veo_args *, int, uint32_t)
+    int veo_args_set_i32(veo_args *, int, int32_t)
     int veo_args_set_float(veo_args *, int, float)
     int veo_args_set_double(veo_args *, int, double)
     int veo_args_set_stack(veo_args *, int, int, void *, size_t)
