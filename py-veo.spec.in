@@ -1,0 +1,63 @@
+%define name py-veo
+%define version @VERSION@
+%define release 1
+%define _unpackaged_files_terminate_build 0
+
+Summary: Python bindings for the VE Offloading API
+Name: %{name}
+Version: %{version}
+Release: %{release}
+Source0: %{name}-%{version}.tar.gz
+License: GPLv2
+Group: Development/Libraries
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
+Prefix: %{_prefix}
+Vendor: Erich Focht <efocht@gmail.com>
+Packager: Erich Focht <efocht@gmail.com>
+Url: https://github.com/sx-aurora/py-veo
+Requires: veoffload
+BuildRequires: veoffload-devel
+
+%description
+This package provides python bindings to VEO: Vector Engine Offloading.
+
+The NEC Aurora Tsubasa Vector Engine (VE) is a very high memory
+bandwidth vector processor with HBM2 memory in the form-factor of a
+PCIe card. Currently up to eight VE cards can be inserted into a
+vector host (VH) which is typically a x86_64 server.
+
+The primary usage model of the VE is as a standalone computer which
+uses the VH for offloading its operating system functionality. Each VE
+card behaves like a separate computer with its own instance of
+operating system (VEOS), it runs native VE programs compiled for the
+vector CPU that are able to communicate with other VEs through MPI.
+
+A second usage model of VEs lets native VE programs offload
+functionality to the VH with the help of the VHcall mechanisms. The VH
+is used by the VE as an accelerator for functions it is better suited
+for, like unvectorizable code.
+
+The third usage model is the classical accelerator model with a main
+program compiled for the VH running high speed program kernels on the
+VE. A mechanism for this usage model is the VE Offloading (VEO)
+library provided by the veofload and veoffload-veorun RPMs.
+
+This Python module is an implementation of the VEO API for Python
+programs. It is an extension to the C API and exposes the mechanisms
+through Python objects.
+
+
+%prep
+%setup -n %{name}-%{version}
+
+%build
+env CFLAGS="$RPM_OPT_FLAGS" python setup.py build
+
+%install
+python setup.py install --root=$RPM_BUILD_ROOT --prefix=/usr --record=INSTALLED_FILES
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%files -f INSTALLED_FILES
+%defattr(-,root,root)

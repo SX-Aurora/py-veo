@@ -42,8 +42,8 @@ setup(
     name = "py-veo",
     version = "1.3.2",
     ext_modules = ext_mods,
-    data_files = [("/usr/share/py-veo/examples", _example_files),
-                  ("/usr/share/py-veo", ["README.md"])],
+    data_files = [("share/py-veo/examples", _example_files),
+                  ("share/py-veo", ["README.md"])],
     author = "Erich Focht",
     author_email = "efocht@gmail.com",
     license = "GPLv2",
@@ -54,13 +54,13 @@ setup(
     long_description_content_type='text/markdown',
     classifiers=[
       'Development Status :: 4 - Beta',
-      'Environment :: Vector Engine :: VEO',
-      'Intended Audience :: End Users',
+      'Environment :: Console',
+      'Intended Audience :: Education',
       'Intended Audience :: Developers',
+      'Intended Audience :: Science/Research',
       'License :: OSI Approved :: GNU General Public License (GPL)',
       'Operating System :: POSIX :: Linux',
       'Programming Language :: Python',
-      'Topic :: Vector Engine Offloading',
-      'Topic :: Accelerator Programming :: VEO'
+      'Topic :: Software Development :: Libraries :: Python Modules'
       ]
 )
