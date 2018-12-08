@@ -24,12 +24,12 @@ sdist:
 	LDFLAGS="-L/opt/nec/ve/veos/lib64 -Wl,-rpath=/opt/nec/ve/veos/lib64" \
 	python setup.py sdist --use-cython
 
-rpm: veosinfo.so
+rpm: veo.so
 	CFLAGS="-I/opt/nec/ve/veos/include" \
 	LDFLAGS="-L/opt/nec/ve/veos/lib64 -Wl,-rpath=/opt/nec/ve/veos/lib64" \
 	python setup.py bdist_rpm
 
 clean:
-	rm -f *.so; rm -rf build
+	rm -f *.so; rm -rf build; make -C examples clean
 
 .PHONY: all clean test

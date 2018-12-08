@@ -32,7 +32,7 @@ test7: libvetest7.so
 test8: libvetest8.so
 	PYTHONPATH=.. python test8-veo.py
 
-test9: libvetest8.so
+test9: libvetest9.so
 	PYTHONPATH=.. python test9-veo.py
 
 libvesleep.so: libvesleep.c
@@ -53,8 +53,11 @@ libvetest6.so: libvetest6.c
 libvetest7.so: libvetest7.c
 	$(VECC) $(VECOPTS) -o libvetest7.so libvetest7.c
 
-libvetest8.so: libvetest8.f90
-	$(VEFTN) $(VECOPTS) -o $@ $^
+libvetest8.so: libvetest8.c
+	$(VECC) $(VECOPTS) -o libvetest8.so libvetest8.c
+
+libvetest9.so: libvetest9.f90
+	$(VEFTN) $(VECOPTS) -report-all -o $@ $^
 
 clean:
 	rm -f *.so

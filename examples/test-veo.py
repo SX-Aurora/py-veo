@@ -1,7 +1,7 @@
 import veo
 import os
 
-print "\nVEO example:\nOpen a context and sleep 10s on the VE\n"
+print "\nVEO example:\nOpen a context and sleep 5s on the VE\n"
 
 p = veo.VeoProc(0)
 lib = p.load_library(os.getcwd() + "/libvesleep.so")
@@ -13,7 +13,7 @@ print "f = ", f
 
 c = p.open_context()
 
-req = f(c, 10)
+req = f(c, 5)
 print "req = ", req
 print "result = ", req.wait_result()
 

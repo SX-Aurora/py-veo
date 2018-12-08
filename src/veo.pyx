@@ -10,7 +10,7 @@ from libveo cimport *
 
 import os
 import numbers
-from cpython.buffer cimport PyBUF_SIMPLE, Py_buffer, PyObject_GetBuffer, \
+from cpython.buffer cimport PyBUF_SIMPLE, PyBUF_ANY_CONTIGUOUS, Py_buffer, PyObject_GetBuffer, \
     PyObject_CheckBuffer, PyBuffer_Release
 import numpy as np
 cimport numpy as np
@@ -143,10 +143,10 @@ cdef class VeoFunction(object):
             x = args[i]
             if isinstance(x, OnStack):
                 try:
-                    a.set_stack(x.scope(), i, x.buff(), x.size())
+                    a.set_stack(x.scope(), i, x.c_pointer(), x.size())
                 except Exception as e:
-                    raise ValueError("%r : arg on stack: buff = %r, size = %r" %
-                                     (e, x.buff(), x.size()))
+                    raise ValueError("%r : arg on stack: c_pointer = %r, size = %r" %
+                                     (e, x.c_pointer(), x.size()))
             else:
                 f = self.args_conv[i]
                 try:
@@ -196,6 +196,7 @@ cdef class VeoRequest(object):
         elif rc < 0:
             raise RuntimeError("wait_result command exception on VH")
         # TODO: cast result
+        print "wait_result returned: %r" % res
         return self.ret_conv(res)
 
     def peek_result(self):
@@ -283,23 +284,38 @@ cdef class VeoLibrary(object):
 
 
 cdef class OnStack(object):
-    cdef _buff
+    cdef Py_buffer data
+    cdef uint64_t _c_pointer
     cdef _size
     cdef veo_args_intent _inout
 
     def __init__(self, buff, size=None, inout=VEO_INTENT_IN):
-        if hasattr(buff, "tobytes"):
-            self._buff = buff.tobytes()
-        else:
-            self._buff = memoryview(buff).tobytes()
+        #
+        if not PyObject_CheckBuffer(buff):
+            raise TypeError("OnStack buff must implement the buffer protocol!")
+
+        PyObject_GetBuffer(buff, &self.data, PyBUF_ANY_CONTIGUOUS)
+
+        if size is not None and self.data.len < size:
+            PyBuffer_Release(&self.data)
+            raise ValueError("OnStack buffer is smaller than expected size (%d < %d)"
+                             % (self.data.len, size))
+        #
+        self._c_pointer = <uint64_t>self.data.buf
         if size is not None:
             self._size = size
         else:
-            self._size = len(self._buff)
+            self._size = self.data.len
         self._inout = inout
+
+    def __dealloc__(self):
+        PyBuffer_Release(&self.data)
 
     def buff(self):
         return self._buff
+
+    def c_pointer(self):
+        return <uint64_t>self._c_pointer
 
     def scope(self):
         return self._inout
@@ -332,8 +348,8 @@ cdef class VeoArgs(object):
         veo_args_set_double(self.args, argnum, val)
 
     def set_stack(self, veo_args_intent inout, int argnum,
-                  char *buff, size_t len):
-        veo_args_set_stack(self.args, inout, argnum, buff, len)
+                  uint64_t buff, size_t len):
+        veo_args_set_stack(self.args, inout, argnum, <void *>buff, len)
 
     def clear(self):
         veo_args_clear(self.args)

@@ -59,3 +59,36 @@ display the content on VE.  Modify buffer on VE and retrieve the
 buffer asynchronously. Display the content of the modified buffer as a
 string.
 
+### test8-veo.py
+
+Test OnStack() passing by reference numpy arrays, intent IN and INOUT.
+
+The VE side sums up the elements of the first array and copies its values
+incremented by 2 into the second array.
+
+
+### test9-veo.py
+
+Test calling a fortran function, passing numpy arrays by reference, OnStack()
+and directly, as pointer.
+
+```
+function test9(a, b, c, n, m)
+    integer, dimension(n), intent(in) :: a
+    integer, dimension(n) :: b
+    double precision, intent(out) :: c(n,m)
+    integer i, j, test9
+    test9 = 0
+    do i = 1, n
+       test9 = test9 + a(i)
+       b(i) = a(i) + 2
+       do j = 1, m
+          c(i,j) = dble(a(i)) * dble(j)
+       end do
+    end do
+    return
+end
+```
+a, b, c are numpy arrays, a, c are passed in by reference, on the stack.
+b is a buffer which was allocated separately on the VE and it's address
+is passed as an argument. b and c are returned and printed.
