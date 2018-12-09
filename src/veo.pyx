@@ -423,15 +423,22 @@ cdef class VeoProc(object):
     cdef readonly int nodeid
     cdef readonly list context
     cdef readonly dict lib
+    cdef readonly 
 
-    def __init__(self, int nodeid):
+    def __init__(self, int nodeid, veorun_bin=None):
         global _proc_init_hook
         self.nodeid = nodeid
         self.context = list()
         self.lib = dict()
-        self.proc_handle = veo_proc_create(nodeid)
-        if self.proc_handle == NULL:
-            raise RuntimeError("veo_proc_create(%d) failed" % nodeid)
+        if veorun_bin is not None:
+            self.proc_handle = veo_proc_create_static(nodeid, veorun_bin)
+            if self.proc_handle == NULL:
+                raise RuntimeError("veo_proc_create_static(%d, %s) failed" %
+                                   (nodeid, veorun_bin))
+        else:
+            self.proc_handle = veo_proc_create(nodeid)
+            if self.proc_handle == NULL:
+                raise RuntimeError("veo_proc_create(%d) failed" % nodeid)
         if len(_proc_init_hook) > 0:
             for init_func in _proc_init_hook:
                 init_func(self)

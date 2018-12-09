@@ -51,6 +51,18 @@ starts `/opt/nec/ve/libexec/veorun`. It can be replaced by an own version with
 statically linked libraries by pointing the environment variable **VEORUN_BIN**
 to it.
 
+Starting with VEO version 1.3.2 a statically linked *veorun* can also be specified
+as an argument when calling *veo_proc_create_static()*. This new VEO API call
+was implemented into the *VepProc* *__init()* method, which can now take the
+statically compiled veorun binaries path as an additional argument:
+```python
+from veo import *
+
+proc = VeoProc(nodeid, veorun_bin_path)
+```
+This change is available at and after the **v1.3.2a** tag of *py-veo*.
+
+
 **Methods:**
 - `load_library(libname)` loads a `.so` dynamically linked shared object
 fileinto the VEOProc address space. It returns a `VeoLibrary` object.
