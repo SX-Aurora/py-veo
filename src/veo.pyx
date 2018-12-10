@@ -423,7 +423,6 @@ cdef class VeoProc(object):
     cdef readonly int nodeid
     cdef readonly list context
     cdef readonly dict lib
-    cdef readonly 
 
     def __init__(self, int nodeid, veorun_bin=None):
         global _proc_init_hook
