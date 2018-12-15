@@ -257,6 +257,13 @@ cdef class VeoLibrary(object):
     cdef readonly dict func
     cdef readonly dict symbol
 
+    def __getattr__(self, name):
+        if name in self.func:
+            return self.func[name]
+        if name in self.symbol:
+            return self.symbol[name]
+        return self.find_function(name)
+
     def __init__(self, veo_proc, name, uint64_t handle):
         self.proc = veo_proc
         self.name = name
