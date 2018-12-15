@@ -1,4 +1,4 @@
-function test9(a, b, c, n, m)
+function test9(a, b, c, n, m) BIND(C)
     integer, dimension(n), intent(in) :: a
     integer, dimension(n) :: b
     double precision, intent(out) :: c(n,m)

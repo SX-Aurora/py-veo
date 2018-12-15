@@ -37,7 +37,7 @@ def round(n, r):
 
 p = veo.VeoProc(0)
 lib = p.load_library(os.getcwd() + "/libvetest9.so")
-f = lib.find_function("test9_")
+f = lib.find_function("test9")
 ctx = p.open_context()
 
 n = 5; m = 3
