@@ -153,6 +153,14 @@ available as dynamic library.
 - `get_symbol(name)`: find a symbol's address in the *VeoLibrary* and return it as a *VEMemPtr*.
 - `find_function(name)`: find a function in the current library and return it as an instance of *VeoFunction*.
 
+Unknown attributes of a *VeoLibrary* object are treated like functions
+that are implicitly searched with the *find_function()*. The search is
+only done once and the *VeoFunction* object is cached inside the
+object in the *func* dict (see below). If the function is not found an
+exception will be raised. This means that a function *foo* inside a
+library object *lib* can be simply addressed as `lib.foo`.
+
+
 **Attributes:**
 - `name`: the name of the library, actually the full path from which it was loaded. The "static" library has the name `__static__`.
 - `proc`: the *VeoProc* instance to which the library belongs.

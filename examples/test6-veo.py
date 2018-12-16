@@ -2,14 +2,13 @@ import veo
 import os
 from cffi import FFI
 
-print "\nVEO test:"
-print "Pass a cffi built structure to the VE as argument on the stack."
-print "Sum the elements and multiply with a factor. Correct result is 30."
-print "\n"
+print("\nVEO test:")
+print("Pass a cffi built structure to the VE as argument on the stack.")
+print("Sum the elements and multiply with a factor. Correct result is 30.")
+print("\n")
 
 p = veo.VeoProc(0)
 lib = p.load_library(os.getcwd() + "/libvetest6.so")
-f = lib.find_function("multeach")
 c = p.open_context()
 
 ffi = FFI()
@@ -25,12 +24,12 @@ abc.b = 2
 abc.c = 3
 
 # we'll pass the struct * as a void *
-f.args_type("void *", "int")
-f.ret_type("int")
+lib.multeach.args_type("void *", "int")
+lib.multeach.ret_type("int")
 
-req = f(c, veo.OnStack(ffi.buffer(abc)), 5)
+req = lib.multeach(c, veo.OnStack(ffi.buffer(abc)), 5)
 r = req.wait_result()
-print "result = %r" % r
+print("result = %r" % r)
 
 del p
-print "finished"
+print("finished")
