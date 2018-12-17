@@ -60,7 +60,7 @@ from veo import *
 
 proc = VeoProc(nodeid, veorun_bin_path)
 ```
-This change is available at and after the **v1.3.2a** tag of *py-veo*.
+This change is available at and after the **v1.3.3** tag of *py-veo*.
 
 
 **Methods:**
@@ -299,5 +299,45 @@ the user will not need to load a library and find a function for each
 of the started *VeoProc* processes, i.e. for each of the VE cards in
 the system.
 
+
 ## Build & Install
+
+The easiest way to install is from PYPI / The Cheese Factory:
+```sh
+pip install --upgrade py-veo
+```
+
+Prebuilt RPM packages are normally published in the github repository
+[releases](https://github.com/SX-Aurora/py-veo/releases).
+
+Bulding from GIT requires *cython* and *numpy*. I prefer to do it from
+inside a virtualenv, but this is a matter of taste. Inside a
+virtualenv only build the SRPM, do build the RPMs outside, otherwise
+the paths to Python will be messed up and point inside the virtualenv.
+
+Clone the repository from github:
+```sh
+git clone https://github.com/SX-Aurora/py-veo.git
+cd py-veo
+```
+
+For a quick test:
+```sh
+make
+
+# try the examples
+cd examples
+make
+```
+
+For building RPMs:
+```sh
+make srpm
+
+# this step needs to be done outside a virtualenv!
+rpmbuild --rebuild *.src.rpm
+```
+
+
+
 
