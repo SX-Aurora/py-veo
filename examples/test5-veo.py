@@ -18,7 +18,7 @@ lib.malloc_buff.ret_type("void *")
 req = lib.malloc_buff(c, veo.OnStack(b'Hello from VH!\0', 15))
 print(req)
 r = req.wait_result()
-print("received address from VE: %r" % r
+print("received address from VE: %r" % r)
 
 buff = b'                                                       '
 p.read_mem(buff, r, 15)
