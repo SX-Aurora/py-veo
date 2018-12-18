@@ -34,7 +34,12 @@ through Python objects.
 
 **Overview**
 
-![PyVEO components](doc/pyveo_components.png)
+![PyVEO components](doc/pyveo_components2.png)
+
+The Python classes are depicted as boxes (VeoProc, VeoLibrary,
+VeBuild, ...), some of their methods are labeling arrows that lead to
+new classes. The following sections document the classes, their
+methods and attributes.
 
 
 ### VeoProc
@@ -256,6 +261,61 @@ table = lib.get_symbol("table_inside_library")
 - `addr`: the memory location within the processes' VE virtual address space.
 - `size`: the size of the memory object. This is only know if the *VEMemPtr* was created by `alloc_mem()`. It is useful for debugging, has no function otherwise.
 - `proc`: the *VeoProc* instance to which the memory belongs.
+
+
+### VeBuild
+
+A `VeBuild` object provides simple wrapper functionality around
+SX-Aurora compilation and linking of VE code into either a dynamically
+shared object usable as a loadable *VeoLibrary*, or a statically
+linked *veorun* that includes the VE kernels. It also allows to inline
+C, C++, Fortran code into the Python program, and compile it from
+within the Python program. This way interactive examples of using the
+VE for offloading can be completely contained within a Python program
+eg. inside a Jupyter or iPython notebook.
+
+**Methods:**
+- `set_c_src(label, content, [flags=...], [compiler=...])`: set a C source code module labeled by *label* to the string in *content*. The global compile flags can be overriden by the argument *flags*, the default C compiler (ncc) can be overriden by the *compiler* parameter. Remember to use raw strings for the content.
+- `set_cpp_src(label, content, [flags], [compiler])`: same as *set_c_src()* for C++ code.
+- `set_ftn_src(label, content, [flags], [compiler])`: same as *set_c_src()* for Fortran code.
+- `build_so([label], [flags=...], [libs=[...]], [linker=...], [verbose=True])`: build a dynamically shared object out of the registered source code blocks.
+  - label: 
+  - flags:
+  - libs:
+  - linker:
+  - verbose:
+- `build_veorun([label], [flags=...], [libs=[...]], [verbose=True])`: build a *veorun* executable from the registered source code blocks. This executable can be used to create a *VeoProc* instance. The options are identical to those of *build_so()*.
+
+
+**NOTE:** When using the tripple quotes '"""', always prepend them by
+'r' ('r"""') such that the content is interpreted as raw
+string. Otherwise the escaped characters will be interpreted and spoil
+the source code.
+
+Example:
+```python
+from veo import *
+
+bld = VeBuild()
+
+# first c source module is a function summing up a vector
+bld.set_c_source("_test", r"""
+double mysum(double *a, int n)
+{
+  int i; double sum;
+  for (i = 0; i < n; i++)
+    sum += a[i];
+  return sum;
+}
+""")
+
+# build the _test.so library in the current directory
+veo_name = bld.build_so(verbose=True)
+
+# remove temporary source and object code, keep the .so file
+bld.clean()
+```
+
 
 
 ### Hooks
