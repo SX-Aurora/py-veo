@@ -274,23 +274,42 @@ within the Python program. This way interactive examples of using the
 VE for offloading can be completely contained within a Python program
 eg. inside a Jupyter or iPython notebook.
 
+It is necessary to store the VEO kernels on disk and load them from
+there because VEO can not load kernels from memory, yet.
+
+`VeBuild` is very simple code that still has some flaws regarding the
+error handling and returns little information when errors occur. It is
+really meant for small experiments, not for serious code development.
+
 **Methods:**
-- `set_c_src(label, content, [flags=...], [compiler=...])`: set a C source code module labeled by *label* to the string in *content*. The global compile flags can be overriden by the argument *flags*, the default C compiler (ncc) can be overriden by the *compiler* parameter. Remember to use raw strings for the content.
+- `set_c_src(label, content, [flags=...], [compiler=...])`: set a C source code module labeled by *label*. The method accepts following arguments:
+  - *label*: a string with a name for this source code block. The source code block's content will end up in a file called <*label*>.c.
+  - *content*: a raw string with the C code for this source block.
+  - *flags*: optional named parameter with override flags for the compilation of this source code block. Must contain `-fpic`!
+  - *compiler*: optional named parameter which overrides the default *ncc* C compiler for this source code block.
 - `set_cpp_src(label, content, [flags], [compiler])`: same as *set_c_src()* for C++ code.
 - `set_ftn_src(label, content, [flags], [compiler])`: same as *set_c_src()* for Fortran code.
-- `build_so([label], [flags=...], [libs=[...]], [linker=...], [verbose=True])`: build a dynamically shared object out of the registered source code blocks.
-  - label: 
-  - flags:
-  - libs:
-  - linker:
-  - verbose:
-- `build_veorun([label], [flags=...], [libs=[...]], [verbose=True])`: build a *veorun* executable from the registered source code blocks. This executable can be used to create a *VeoProc* instance. The options are identical to those of *build_so()*.
+- `build_so([label], [flags=...], [libs=[...]], [linker=...], [verbose=True])`: build a dynamically shared object from all registered source code blocks. Each source code block will be compiled as a separate object file and they will be linked together. The method returns the name of the `.so` file, if successful, *None* otherwise. This can raise exceptions!
+  - *label*: an optional name for the `.so` file. If not specified, the name will be set to that of the first source block's label.
+  - *flags*: a string with override flags for linking the `.so` file.
+  - *libs*: a Python array with further libraries of objects to be linked. The strings will be added to the linker command.
+  - *linker*: a string overriding the linker that is detected by the build command.
+  - *verbose*: a boolean activating verbose output of comilation commands and their output. The default value is *False*.
+- `build_veorun([label], [flags=...], [libs=[...]], [verbose=True])`: build a *veorun* executable from the registered source code blocks. This executable can be used to create a *VeoProc* instance. The options are identical to those of *build_so()*. The method uses the *mk_veorun_static* command from the *veoffload-veorun* package. The command returns the name of the *veorun* executable if successful.
+- `clean()`: remove the source code and object files which were written during the compilation. The *.so* and *veorun* files are not deleted.
 
+When building a shared object or a statically linked *veorun* file the
+source code blocks will be written into source files named after their
+labels, in the current working directory. Make sure you don't
+overwrite anything! These source files are compiled into objects files
+(also in the current directory) and linked together into the `.so`
+ or the *veorun* file.
 
-**NOTE:** When using the tripple quotes '"""', always prepend them by
-'r' ('r"""') such that the content is interpreted as raw
+**NOTE:** When using the tripple quotes """, always prepend them by
+'r' (r""") such that the content is interpreted as raw
 string. Otherwise the escaped characters will be interpreted and spoil
 the source code.
+
 
 Example:
 ```python
@@ -314,6 +333,13 @@ veo_name = bld.build_so(verbose=True)
 
 # remove temporary source and object code, keep the .so file
 bld.clean()
+
+# and now the VEO part
+p = VeoProc(0)
+lib = p.load_library(os.getcwd() + "/" + veo_name)
+lib.mysum.args_type("double *", "int")
+lib.mysum.ret_type("double")
+
 ```
 
 
