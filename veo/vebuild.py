@@ -3,16 +3,16 @@ import subprocess
 import os
 
 
-GLOBAL_SO_FLAGS = "-shared"
+GLOBAL_SO_FLAGS = "-shared -pthread"
 MK_VEORUN_STATIC = "/opt/nec/ve/libexec/mk_veorun_static"
 
 SUFFIX = { "C": ".c", "C++": ".cpp", "F": ".f90"}
 COMPILER = { "C": "/opt/nec/ve/bin/ncc",
              "C++": "/opt/nec/ve/bin/nc++",
              "F": "/opt/nec/ve/bin/nfort" }
-FLAGS = { "C": "-O2 -fpic",
-          "C++": "-O2 -fpic -finline -finline-functions",
-          "F": "-O2 -fpic" }
+FLAGS = { "C": "-O2 -fpic -pthread",
+          "C++": "-O2 -fpic -pthread -finline -finline-functions",
+          "F": "-O2 -fpic -pthread" }
 
 
 class VeObj(object):
