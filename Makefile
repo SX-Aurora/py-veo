@@ -6,10 +6,10 @@
 #   log4c
 #
 
-veo.so: src/veo.pyx src/libveo.pxd src/conv_i64.pxi
+veo/_veo.so: veo/_veo.pyx veo/libveo.pxd veo/conv_i64.pxi
 	python setup.py build_ext -i --use-cython
 
-test: veo.so
+test: veo/_veo.so
 	$(MAKE) -C examples
 
 install:
@@ -35,6 +35,6 @@ srpm: sdist py-veo.spec
 	rpmbuild -ts dist/$$PKG.tar.gz; mv $$HOME/rpmbuild/SRPMS/$$PKG-*.src.rpm dist
 
 clean:
-	rm -f *.so src/veo.c py-veo.spec; rm -rf build; make -C examples clean
+	rm -f veo/*.so veo/_veo.c py-veo.spec; rm -rf build; make -C examples clean
 
 .PHONY: all clean test

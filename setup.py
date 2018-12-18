@@ -13,11 +13,11 @@ if "--use-cython" in sys.argv:
 
 
 _ext_mods=[
-    Extension("veo",
-              sources=["src/veo" + ext],
+    Extension("veo._veo",
+              sources=["veo/_veo" + ext],
               libraries=["veo"], # Unix-like specific
-              library_dirs=["/opt/nec/ve/veos/lib64"],
-              include_dirs=["/opt/nec/ve/veos/include", numpy.get_include()],
+              library_dirs=["veo", "/opt/nec/ve/veos/lib64"],
+              include_dirs=["veo", "/opt/nec/ve/veos/include", numpy.get_include()],
               extra_link_args=["-Wl,-rpath=/opt/nec/ve/veos/lib64"]
     ),
 ]
@@ -40,10 +40,13 @@ with open(path.join(this_directory, 'README.md')) as f:
     
 setup(
     name = "py-veo",
-    version = "1.3.4",
+    version = "1.3.5",
     ext_modules = ext_mods,
     data_files = [("share/py-veo/examples", _example_files),
                   ("share/py-veo", ["README.md"])],
+    packages = [ "veo" ],
+    #include_package_data = True,
+    #package_data = { '': ['*.pxd', '*.pyx', '*.c', '*.h', '*.py'] },
     author = "Erich Focht",
     author_email = "efocht@gmail.com",
     license = "GPLv2",
