@@ -40,7 +40,7 @@ with open(path.join(this_directory, 'README.md')) as f:
     
 setup(
     name = "py-veo",
-    version = "1.3.5",
+    version = "1.3.6",
     ext_modules = ext_mods,
     data_files = [("share/py-veo/examples", _example_files),
                   ("share/py-veo", ["README.md"])],
