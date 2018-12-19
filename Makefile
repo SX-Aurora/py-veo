@@ -35,6 +35,6 @@ srpm: sdist py-veo.spec
 	rpmbuild -ts dist/$$PKG.tar.gz; mv $$HOME/rpmbuild/SRPMS/$$PKG-*.src.rpm dist
 
 clean:
-	rm -f veo/*.so veo/_veo.c py-veo.spec; rm -rf build; make -C examples clean
+	rm -f veo/*.so veo/_veo.c veo/*.pyc py-veo.spec; rm -rf build; make -C examples clean
 
 .PHONY: all clean test
