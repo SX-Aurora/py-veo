@@ -1,6 +1,7 @@
 import collections
 import subprocess
 import os
+from shutil import rmtree
 
 
 GLOBAL_SO_FLAGS = "-shared -pthread"
@@ -13,6 +14,19 @@ COMPILER = { "C": "/opt/nec/ve/bin/ncc",
 FLAGS = { "C": "-O2 -fpic -pthread",
           "C++": "-O2 -fpic -pthread -finline -finline-functions",
           "F": "-O2 -fpic -pthread" }
+
+
+def _shell_cmd(cmd, verbose=False):
+    if verbose: print(cmd)
+    try:
+        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
+        if verbose: print(out)
+    except Exception as e:
+        print("%r" % e)
+        print("Command failed: %s" % e.cmd)
+        print("Output:\n%s" % e.output)
+        return False
+    return True
 
 
 class VeObj(object):
@@ -34,14 +48,15 @@ class VeObj(object):
             f.write(self._src)
 
         cmd = self._compiler + " " + self._flags + " -c " + sname + " -o " + oname + ".o"
-        if verbose: print(cmd)
-        out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
-        return out
+        return _shell_cmd(cmd, verbose=verbose)
 
     def clean(self, oname):
         sname = oname + SUFFIX[self._type]
-        os.unlink(sname)
-        os.unlink(oname + ".o")
+        try:
+            os.unlink(sname)
+            os.unlink(oname + ".o")
+        except:
+            pass
 
     def get_compiler(self):
         return self._compiler
@@ -75,9 +90,12 @@ class VeFtnObj(VeObj):
 
 
 class VeBuild(object):
+    _built = [] # built files, to be deleted by realclean()
+    _bdirs = [] # build dirs that were created
+
     def __init__(self):
         self._obj = collections.OrderedDict()
-        self._builddir = "."
+        self._blddir = "./"
 
     def set_c_src(self, label, content, flags=None, compiler=None):
         self._obj[label] = VeCObj(content, flags=flags, compiler=compiler)
@@ -88,75 +106,96 @@ class VeBuild(object):
     def set_ftn_src(self, label, content, flags=None, compiler=None):
         self._obj[label] = VeFtnObj(content, flags=flags, compiler=compiler)
 
-    def build_dir(self, dirname):
-        self._builddir = dirname
+    def set_build_dir(self, dirname):
+        if not dirname.endswith("/"):
+            dirname = dirname + "/"
+        self._blddir = dirname
 
     def build_so(self, label=None, flags=None, libs=[], linker=None, verbose=False):
         if label is None and self._obj.keys():
             label = self._first_label()
         if label is None:
             raise ValueError("No label. Did you define any sources?")
-        soname = label + ".so"
+        self._check_create_blddir()
+        soname = self._blddir + label + ".so"
         for src, obj in self._obj.items():
-            try:
-                out = obj.build(src, verbose=verbose)
-                print("%s -> ok" % src)
-                if verbose: print(out)
-            except Exception as e:
-                print("%s -> failed (%r)" % (src, e))
+            if obj.build(self._blddir + src, verbose=verbose):
+                print("compile %s -> ok" % src)
+            else:
+                print("compile %s -> failed" % src)
                 return
+
         if linker is None:
             linker = self._find_linker()
         if flags:
             cmd = linker + " " + flags
         else:
             cmd = linker + " " + GLOBAL_SO_FLAGS
-        cmd = cmd + " -o " + soname
-        cmd = cmd + " " + " ".join(["%s.o" % src for src in self._obj.keys()]) + \
-              " " + " ".join(libs)
-        if verbose: print(cmd)
-        try:
-            out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
-            if verbose: print(out)
-        except Exception as e:
-            print("build_so(%s) -> failed (%r)" % (soname, e))
-            return None
-        return soname
+        cmd += " -o " + soname
+        cmd += " " + " ".join(["%s%s.o" % (self._blddir, src) for src in self._obj.keys()])
+        if libs:
+            cmd += " " + " ".join(libs)
+        if _shell_cmd(cmd, verbose=verbose):
+            if soname not in self._built:
+                self._built.append(soname)
+            return soname
+        return None
 
     def build_veorun(self, label=None, flags=None, libs=[], verbose=False):
         if label is None and self._obj.keys():
             label = self._first_label()
         if label is None:
             raise ValueError("No label. Did you define any sources?")
+        self._check_create_blddir()
         oname = label + ".veorun"
         for src, obj in self._obj.items():
-            try:
-                out = obj.build(src, verbose=verbose)
-                print("%s -> ok" % src)
-                if verbose: print(out)
-            except Exception as e:
-                print("%s -> failed (%r)" % (src, e))
+            if obj.build(src, verbose=verbose):
+                print("compile %s -> ok" % src)
+            else:
+                print("compile %s -> failed" % src)
                 return
 
         cmd = MK_VEORUN_STATIC + " " + oname
         if flags:
             cmd = "env CFLAGS=\"%s\" " % flags + cmd
-        cmd = cmd + " " + " ".join(["%s.o" % src for src in self._obj.keys()])
+        cmd += " " + " ".join(["%s%s.o" % (self._blddir, src) for src in self._obj.keys()])
         if libs:
-            cmd = cmd + " " + " ".join(libs)
-        if verbose: print(cmd)
-        try:
-            out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
-            if verbose: print(out)
-        except Exception as e:
-            print("build_veorun(%s) -> failed (%r)" % (oname, e))
-            return None
-        return oname
+            cmd += " " + " ".join(libs)
+        if _shell_cmd(cmd, verbose=verbose):
+            if oname not in self._built:
+                self._built.append(oname)
+            return oname
+        return None
 
     def clean(self):
         for src, obj in self._obj.items():
             obj.clean(src)
-    
+
+    def clear(self):
+        self.clean()
+        self._obj = OrderedDict()
+        self._blddir = "./"
+
+    def realclean(self):
+        self.clean()
+        for file in self._built:
+            try:
+                os.unlink(file)
+                self._built.remove(file)
+            except:
+                pass
+        for dir in self._bdirs:
+            rmtree(dir)
+        self._bdirs = []
+
+    def _check_create_blddir(self):
+        if os.path.isdir(self._blddir):
+            if not os.access(self._blddir, os.W_OK | os.R_OK):
+                raise OSError("Directory %s exists but is not readable or writable!" % self._blddir)
+        else:
+            os.mkdir(self._blddir)
+            self._bdirs.append(self._blddir)
+
     def _first_label(self):
         if self._obj.keys():
             return self._obj.keys()[0]

@@ -1,4 +1,5 @@
 *~
 *.o
 *.so
-veo.c
+_veo.c
+*.pyc

@@ -289,6 +289,7 @@ really meant for small experiments, not for serious code development.
   - *compiler*: optional named parameter which overrides the default *ncc* C compiler for this source code block.
 - `set_cpp_src(label, content, [flags], [compiler])`: same as *set_c_src()* for C++ code.
 - `set_ftn_src(label, content, [flags], [compiler])`: same as *set_c_src()* for Fortran code.
+- `set_build_dir(dirname)`: set the directory in which the source blocks will be copied into files, the object files will be compiled and the *.so* and *veorun* files will be stored.
 - `build_so([label], [flags=...], [libs=[...]], [linker=...], [verbose=True])`: build a dynamically shared object from all registered source code blocks. Each source code block will be compiled as a separate object file and they will be linked together. The method returns the name of the `.so` file, if successful, *None* otherwise. This can raise exceptions!
   - *label*: an optional name for the `.so` file. If not specified, the name will be set to that of the first source block's label.
   - *flags*: a string with override flags for linking the `.so` file.
@@ -297,6 +298,11 @@ really meant for small experiments, not for serious code development.
   - *verbose*: a boolean activating verbose output of comilation commands and their output. The default value is *False*.
 - `build_veorun([label], [flags=...], [libs=[...]], [verbose=True])`: build a *veorun* executable from the registered source code blocks. This executable can be used to create a *VeoProc* instance. The options are identical to those of *build_so()*. The method uses the *mk_veorun_static* command from the *veoffload-veorun* package. The command returns the name of the *veorun* executable if successful.
 - `clean()`: remove the source code and object files which were written during the compilation. The *.so* and *veorun* files are not deleted.
+- `clear()`: remove the internally stored source code blocks.
+- `realclean()`: calls the *clean()* method and removes all written *.so* and *veorun* files. Also remove the build directories that were created. A call to *realclean()* followed by a call to *clear()* initializes the *VeBuild* object and removes most of the things it created.
+
+A source code block can be replaced or updated by calling the
+*set_XYZ_src()* method again with the same label.
 
 When building a shared object or a statically linked *veorun* file the
 source code blocks will be written into source files named after their
@@ -309,7 +315,6 @@ overwrite anything! These source files are compiled into objects files
 'r' (r""") such that the content is interpreted as raw
 string. Otherwise the escaped characters will be interpreted and spoil
 the source code.
-
 
 Example:
 ```python
