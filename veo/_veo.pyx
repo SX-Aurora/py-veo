@@ -195,8 +195,6 @@ cdef class VeoRequest(object):
             raise RuntimeError("wait_result command handling error")
         elif rc < 0:
             raise RuntimeError("wait_result command exception on VH")
-        # TODO: cast result
-        print("wait_result returned: %r" % res)
         return self.ret_conv(res)
 
     def peek_result(self):
@@ -210,7 +208,6 @@ cdef class VeoRequest(object):
             raise NameError("peek_result command unfinished")
         elif rc < 0:
             raise RuntimeError("peek_result command exception on VH")
-        # TODO: cast result
         return self.ret_conv(res)
 
 

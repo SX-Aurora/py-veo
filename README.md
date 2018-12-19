@@ -229,6 +229,28 @@ Calling a function is asynchronous. The function and its arguments are
 queued in the command queue of the *VeoContext*.
 
 
+### OnStack
+
+With *OnStack* it is possible to pass in and out arguments that need
+to be accessed by reference. Python objects that support the buffer
+interface are supported as arguments of *OnStack*. The initialization
+syntax is:
+```py
+OnStack(buff, [size=...], [inout=...])
+```
+with the arguments:
+- `buff`: is a python object that supports the buffer interface and is contiguous in memory.
+- `size`: can limit the size of the transfer. If not specified, the size of the buffer is used.
+- `inout`: the scope of the transfer, can be `VEO_INTENT_IN`, `VEO_INTENT_OUT` or `VEO_INTENT_INOUT`.
+
+With *VEO_INTENT_IN* the Python *buff* object's buffer is copied onto
+the VE stack right before calling the VE kernel. With *VEO_INTENT_OUT*
+the buffer is not copied in but copied out from the VE's stack into
+the Python object's buffer after the VE kernel has finished
+execution. *VEO_INTENT_INOUT* obviously copies data in before
+execution and out after.
+
+
 ### VeoRequest
 
 Each call to a *VeoFunction* returns a *VeoRequest* which helps track
