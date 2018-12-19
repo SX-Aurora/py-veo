@@ -1,6 +1,6 @@
 import veo
 import os
-import numpy as np
+np = veo.np
 
 
 print """
@@ -50,7 +50,7 @@ msz = np.array([m], dtype=np.int32)
 #nsz = np.int32(buff.size)
 
 b_ve = p.alloc_mem( round(b.size * 4, 8) )
-print("allocated b on VE: ", b_ve)
+print("allocated b on VE: %r" % b_ve)
 
 p.write_mem(b_ve, b, b.size * 4)
 print("wrote b to VE (zeros).")
@@ -64,13 +64,13 @@ req = f(ctx, veo.OnStack(a, inout=veo.INTENT_IN),
 
 res = req.wait_result()
 
-print("Request returns sum = ", res)
+print("Request returns sum = %r" % res)
 
 p.read_mem(b, b_ve, b.size * 4)
 print("read b from VE.")
 
-print("b after VEO call:", b)
-print("c after VEO call:", c)
+print("b after VEO call: %r" % b)
+print("c after VEO call: %r" % c)
 
 del p
 print("finished")

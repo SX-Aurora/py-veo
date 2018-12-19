@@ -33,9 +33,9 @@ req = lib.mod_buff(c, veo.OnStack(buff, inout=veo.INTENT_IN),
                    veo.OnStack(nbuff))
 
 res = req.wait_result()
-print("request returns res = ", res)
+print("request returns res = %r" % res)
 
-print("buff2 after VEO call:", buff2)
+print("buff2 after VEO call: %r" % buff2)
 
 del p
 print("finished")
