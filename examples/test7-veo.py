@@ -34,7 +34,7 @@ r3 = c.async_read_mem(buff, buff_ve, buff.size)
 print("async_read req: %r" % r3)
 
 r = r3.wait_result()
-print("VH buffer: %r" % buff.tobytes())
+print("VH buffer: %r" % buff.tostring())
 
 del p
 print("finished")
