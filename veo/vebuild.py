@@ -11,9 +11,9 @@ SUFFIX = { "C": ".c", "C++": ".cpp", "F": ".f90"}
 COMPILER = { "C": "/opt/nec/ve/bin/ncc",
              "C++": "/opt/nec/ve/bin/nc++",
              "F": "/opt/nec/ve/bin/nfort" }
-FLAGS = { "C": "-O2 -fpic -pthread",
-          "C++": "-O2 -fpic -pthread -finline -finline-functions",
-          "F": "-O2 -fpic -pthread" }
+FLAGS = { "C": "-O2 -fpic -pthread -report-all -fdiag-vector=2",
+          "C++": "-O2 -fpic -pthread -finline -finline-functions -report-all -fdiag-vector=2",
+          "F": "-O2 -fpic -pthread -report-all -fdiag-vector=2" }
 
 
 def _shell_cmd(cmd, verbose=False):
@@ -21,6 +21,7 @@ def _shell_cmd(cmd, verbose=False):
     try:
         out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
         if verbose: print(out)
+        
     except Exception as e:
         print("%r" % e)
         print("Command failed: %s" % e.cmd)
@@ -42,13 +43,31 @@ class VeObj(object):
         else:
             self._compiler = compiler
 
-    def build(self, oname, verbose=False):
+    def build(self, oname, dir=None, verbose=False):
+        owd = os.getcwd()
+        if dir:
+            os.chdir(dir)
         sname = oname + SUFFIX[self._type]
         with open(sname, "w") as f:
             f.write(self._src)
 
         cmd = self._compiler + " " + self._flags + " -c " + sname + " -o " + oname + ".o"
-        return _shell_cmd(cmd, verbose=verbose)
+        try:
+            rc = _shell_cmd(cmd, verbose=verbose)
+        except Exception as e:
+            os.chdir(owd)
+            raise(e)
+        if verbose and os.path.isfile(oname + ".L"):
+            print("---------")
+            with open(oname + ".L", "r") as f:
+                for line in f:
+                    if line.endswith("\n"):
+                        line = line[:-1]
+                    print(line)
+            print("---------")
+        if dir:
+            os.chdir(owd)
+        return rc
 
     def clean(self, oname):
         sname = oname + SUFFIX[self._type]
@@ -91,11 +110,10 @@ class VeFtnObj(VeObj):
 
 class VeBuild(object):
     _built = [] # built files, to be deleted by realclean()
-    _bdirs = [] # build dirs that were created
 
     def __init__(self):
         self._obj = collections.OrderedDict()
-        self._blddir = "./"
+        self._blddir = ""
 
     def set_c_src(self, label, content, flags=None, compiler=None):
         self._obj[label] = VeCObj(content, flags=flags, compiler=compiler)
@@ -117,14 +135,14 @@ class VeBuild(object):
         if label is None:
             raise ValueError("No label. Did you define any sources?")
         self._check_create_blddir()
-        soname = self._blddir + label + ".so"
         for src, obj in self._obj.items():
-            if obj.build(self._blddir + src, verbose=verbose):
+            if obj.build(src, dir=self._blddir, verbose=verbose):
                 print("compile %s -> ok" % src)
             else:
                 print("compile %s -> failed" % src)
                 return
 
+        soname = self._blddir + label + ".so"
         if linker is None:
             linker = self._find_linker()
         if flags:
@@ -147,14 +165,14 @@ class VeBuild(object):
         if label is None:
             raise ValueError("No label. Did you define any sources?")
         self._check_create_blddir()
-        oname = label + ".veorun"
         for src, obj in self._obj.items():
-            if obj.build(src, verbose=verbose):
+            if obj.build(src, dir=self._blddir, verbose=verbose):
                 print("compile %s -> ok" % src)
             else:
                 print("compile %s -> failed" % src)
                 return
 
+        oname = self._blddir + label + ".veorun"
         cmd = MK_VEORUN_STATIC + " " + oname
         if flags:
             cmd = "env CFLAGS=\"%s\" " % flags + cmd
@@ -169,12 +187,12 @@ class VeBuild(object):
 
     def clean(self):
         for src, obj in self._obj.items():
-            obj.clean(src)
+            obj.clean(self._blddir + src)
 
     def clear(self):
         self.clean()
-        self._obj = OrderedDict()
-        self._blddir = "./"
+        self._obj = collections.OrderedDict()
+        self._blddir = ""
 
     def realclean(self):
         self.clean()
@@ -184,17 +202,17 @@ class VeBuild(object):
                 self._built.remove(file)
             except:
                 pass
-        for dir in self._bdirs:
-            rmtree(dir)
-        self._bdirs = []
+        if self._blddir != "":
+            rmtree(self._blddir)
 
     def _check_create_blddir(self):
+        if self._blddir == "":
+            return
         if os.path.isdir(self._blddir):
             if not os.access(self._blddir, os.W_OK | os.R_OK):
-                raise OSError("Directory %s exists but is not readable or writable!" % self._blddir)
+                raise OSError("Directory '%s' exists but is not readable or writable!" % self._blddir)
         else:
             os.mkdir(self._blddir)
-            self._bdirs.append(self._blddir)
 
     def _first_label(self):
         if self._obj.keys():
