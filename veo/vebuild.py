@@ -216,7 +216,8 @@ class VeBuild(object):
 
     def _first_label(self):
         if self._obj.keys():
-            return self._obj.keys()[0]
+            for k in self._obj.keys():
+                return k
         return None
 
     def _find_linker(self):

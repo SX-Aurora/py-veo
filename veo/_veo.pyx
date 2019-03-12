@@ -14,6 +14,7 @@ from cpython.buffer cimport PyBUF_SIMPLE, PyBUF_ANY_CONTIGUOUS, Py_buffer, PyObj
     PyObject_CheckBuffer, PyBuffer_Release
 import numpy as np
 cimport numpy as np
+import psutil
 
 include "conv_i64.pxi"
 
@@ -369,12 +370,17 @@ cdef class VeoCtxt(object):
     """
     cdef veo_thr_ctxt *thr_ctxt
     cdef VeoProc proc
+    cdef readonly int tid
 
     def __init__(self, VeoProc proc):
+        cdef set _otids, _ctids
+        _otids = set([_thr.id for _thr in psutil.Process().threads()])
         self.proc = proc
         self.thr_ctxt = veo_context_open(proc.proc_handle)
         if self.thr_ctxt == NULL:
             raise RuntimeError("veo_context_open failed")
+        _ctids = set([_thr.id for _thr in psutil.Process().threads()])
+        self.tid = list(_ctids - _otids)[0]
 
     def __dealloc__(self):
         veo_context_close(self.thr_ctxt)
@@ -427,12 +433,15 @@ cdef class VeoProc(object):
     cdef readonly int nodeid
     cdef readonly list context
     cdef readonly dict lib
+    cdef readonly list tids
 
     def __init__(self, int nodeid, veorun_bin=None):
         global _proc_init_hook
         self.nodeid = nodeid
         self.context = list()
         self.lib = dict()
+        cdef set _otids, _ptids
+        _otids = set([_thr.id for _thr in psutil.Process().threads()])
         if veorun_bin is not None:
             self.proc_handle = veo_proc_create_static(nodeid, veorun_bin)
             if self.proc_handle == NULL:
@@ -442,6 +451,8 @@ cdef class VeoProc(object):
             self.proc_handle = veo_proc_create(nodeid)
             if self.proc_handle == NULL:
                 raise RuntimeError("veo_proc_create(%d) failed" % nodeid)
+        _ptids = set([_thr.id for _thr in psutil.Process().threads()])
+        self.tid = list(_ptids - _otids)[0]
         if len(_proc_init_hook) > 0:
             for init_func in _proc_init_hook:
                 init_func(self)
