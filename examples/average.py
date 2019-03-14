@@ -27,7 +27,7 @@ lib = proc.load_library(os.getcwd() + "/" + ve_so_name)
 lib.average.args_type("double *", "int")
 lib.average.ret_type("double")
 
-n = 1000000     # length of random vector: 1M elements
+n = 128 * 1024     # length of random vector: 128k elements
 a = np.random.rand(n)
 print("VH numpy average = %r" % np.average(a))
 
