@@ -11,7 +11,7 @@ p = veo.VeoProc(0)
 lib = p.load_library(os.getcwd() + "/libvetest2.so")
 c = p.open_context()
 
-args = (-12, 123456, -1234L, 1234567L, 0.12345, 0.12345)
+args = (-12, 123456, -1234, 1234567, 0.12345, 0.12345)
 print("sending args: %r" % (args,))
 lib.print_args.args_type("int", "unsigned int", "long", "unsigned long", "double", "float")
 req = lib.print_args(c, *args)

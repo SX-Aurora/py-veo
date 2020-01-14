@@ -3,7 +3,7 @@ import os
 np = veo.np
 
 
-print """
+print("""
 VEO test:
 
 Call a fortran function and pass in numpy arrays and parameters, by reference.
@@ -28,7 +28,7 @@ a, b, c are numpy arrays, a, c are passed by reference, on the stack,
 b is a buffer which was allocated separately on the VE and it's address
 is passed as an argument. b and c are returned and printed.
 
-"""
+""")
 
 
 def round(n, r):

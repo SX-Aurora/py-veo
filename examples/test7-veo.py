@@ -18,7 +18,7 @@ lib = p.load_library(os.getcwd() + "/libvetest7.so")
 f = lib.find_function("print_mod_buff")
 c = p.open_context()
 
-buff = np.frombuffer("Hello VE!!!\x00", dtype=np.uint8)
+buff = np.frombuffer(b'Hello VE!!!\x00', dtype=np.uint8)
 
 buff_ve = p.alloc_mem( round(buff.size, 8) )
 print("allocated buffer on VE: %r" % buff_ve)
