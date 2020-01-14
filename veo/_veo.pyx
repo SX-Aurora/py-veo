@@ -269,22 +269,24 @@ cdef class VeoLibrary(object):
         self.func = dict()
         self.symbol = dict()
 
-    def get_symbol(self, char *symname):
+    def get_symbol(self, symname):
         cdef uint64_t res
-        res = veo_get_sym(self.proc.proc_handle, self.lib_handle, symname)
+        cdef b_symname = symname.encode('UTF-8')
+        res = veo_get_sym(self.proc.proc_handle, self.lib_handle, b_symname)
         if res == 0UL:
             raise RuntimeError("veo_get_sym '%s' failed" % symname)
         memptr = VEMemPtr(self.proc, res, 0)
-        self.symbol[<bytes>symname] = memptr
+        self.symbol[symname] = memptr
         return memptr
 
-    def find_function(self, char *symname):
+    def find_function(self, symname):
         cdef uint64_t res
-        res = veo_get_sym(self.proc.proc_handle, self.lib_handle, symname)
+        cdef b_symname = symname.encode('UTF-8')
+        res = veo_get_sym(self.proc.proc_handle, self.lib_handle, b_symname)
         if res == 0UL:
             raise RuntimeError("veo_get_sym '%s' failed" % symname)
-        func = VeoFunction(self, res, <bytes>symname)
-        self.func[<bytes>symname] = func
+        func = VeoFunction(self, res, b_symname)
+        self.func[symname] = func
         return func
 
 
@@ -471,19 +473,20 @@ cdef class VeoProc(object):
         Return None if the function wasn't found.
         """
         for lib in self.lib:
-            if name in lib.func.keys():
-                return lib.func[name]
+            if (<bytes> name) in lib.func.keys():
+                return lib.func[<bytes> name]
         return None
 
     def i64_to_memptr(self, int64_t x):
         return VEMemPtr(self, ConvFromI64.to_ulong(x), 0)
 
-    def load_library(self, char *libname):
-        cdef uint64_t res = veo_load_library(self.proc_handle, libname)
+    def load_library(self, libname):
+        cdef b_libname = libname.encode('UTF-8')
+        cdef uint64_t res = veo_load_library(self.proc_handle, b_libname)
         if res == 0UL:
             raise RuntimeError("veo_load_library '%s' failed" % libname)
-        lib = VeoLibrary(self, <bytes> libname, res)
-        self.lib[<bytes>libname] = lib
+        lib = VeoLibrary(self, libname, res)
+        self.lib[libname] = lib
         return lib
 
     def static_library(self):

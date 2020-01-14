@@ -40,7 +40,7 @@ with open(path.join(this_directory, 'README.md')) as f:
     
 setup(
     name = "py-veo",
-    version = "1.3.10",
+    version = "1.4.0",
     ext_modules = ext_mods,
     data_files = [("share/py-veo/examples", _example_files),
                   ("share/py-veo", ["README.md"])],
@@ -50,7 +50,7 @@ setup(
     author = "Erich Focht",
     author_email = "efocht@gmail.com",
     license = "GPLv2",
-    requires = ["numpy"],
+    requires = ["future","numpy", "psutil"],
     description = "Python bindings for the VE Offloading API",
     url = "https://github.com/sx-aurora/py-veo",
     long_description=long_description,
