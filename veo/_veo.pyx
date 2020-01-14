@@ -460,9 +460,6 @@ cdef class VeoProc(object):
                 init_func(self)
 
     def __dealloc__(self):
-        while len(self.context) > 0:
-            c = self.context.pop(0)
-            del c
         if veo_proc_destroy(self.proc_handle):
             raise RuntimeError("veo_proc_destroy failed")
 
