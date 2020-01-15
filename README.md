@@ -450,7 +450,3 @@ make srpm
 # this step needs to be done outside a virtualenv!
 rpmbuild --rebuild *.src.rpm
 ```
-
-
-
-

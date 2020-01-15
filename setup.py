@@ -1,5 +1,5 @@
 import sys, glob
-from distutils.core import setup
+from setuptools import setup
 from distutils.extension import Extension
 import numpy
 
@@ -37,16 +37,13 @@ from os import path
 this_directory = path.abspath(path.dirname(__file__))
 with open(path.join(this_directory, 'README.md')) as f:
     long_description = f.read()
-    
+
 setup(
     name = "py-veo",
     version = "1.4.0",
     ext_modules = ext_mods,
-    data_files = [("share/py-veo/examples", _example_files),
-                  ("share/py-veo", ["README.md"])],
+    data_files = [("share/py-veo/examples", _example_files), ("share/py-veo", ["README.md"])],
     packages = [ "veo" ],
-    #include_package_data = True,
-    #package_data = { '': ['*.pxd', '*.pyx', '*.c', '*.h', '*.py'] },
     author = "Erich Focht",
     author_email = "efocht@gmail.com",
     license = "GPLv2",
