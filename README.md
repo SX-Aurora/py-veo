@@ -443,6 +443,19 @@ cd examples
 make
 ```
 
+If you want to build with AVEO instead of VEO please set the following
+environment variables and point them to the proper installation path
+of AVEO, for example:
+```
+export VEO_LIB_DIR=$HOME/aveo/install/lib
+export VEO_INC_DIR=$HOME/aveo/install/include
+```
+For running with AVEO when using the VeBuild module you might need:
+```
+export MK_VEORUN_STATIC=$HOME/aveo/install/libexec/mk_veorun_static
+```
+
+
 For building RPMs:
 ```sh
 make srpm

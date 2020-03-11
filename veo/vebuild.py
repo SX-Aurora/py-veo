@@ -5,7 +5,9 @@ from shutil import rmtree
 
 
 GLOBAL_SO_FLAGS = "-shared -pthread"
-MK_VEORUN_STATIC = "/opt/nec/ve/libexec/mk_veorun_static"
+MK_VEORUN_STATIC = os.getenv("MK_VEORUN_STATIC")
+if not MK_VEORUN_STATIC:
+    MK_VEORUN_STATIC = "/opt/nec/ve/libexec/mk_veorun_static"
 
 SUFFIX = { "C": ".c", "C++": ".cpp", "F": ".f90"}
 COMPILER = { "C": "/opt/nec/ve/bin/ncc",
