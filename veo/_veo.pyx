@@ -382,7 +382,9 @@ cdef class VeoCtxt(object):
         if self.thr_ctxt == NULL:
             raise RuntimeError("veo_context_open failed")
         _ctids = set([_thr.id for _thr in psutil.Process().threads()])
-        self.tid = list(_ctids - _otids)[0]
+        _ctids = _ctids - _otids
+        if len(_ctids) > 0:
+            self.tid = list(_ctids)[0]
 
     def __dealloc__(self):
         veo_context_close(self.thr_ctxt)
@@ -454,7 +456,9 @@ cdef class VeoProc(object):
             if self.proc_handle == NULL:
                 raise RuntimeError("veo_proc_create(%d) failed" % nodeid)
         _ptids = set([_thr.id for _thr in psutil.Process().threads()])
-        self.tid = list(_ptids - _otids)[0]
+        _ptids = _ptids - _otids
+        if len(_ptids) > 0:
+            self.tid = list(_ptids)[0]
         if len(_proc_init_hook) > 0:
             for init_func in _proc_init_hook:
                 init_func(self)

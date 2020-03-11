@@ -1,4 +1,4 @@
-import sys, glob
+import os, sys, glob
 from setuptools import setup
 from distutils.extension import Extension
 import numpy
@@ -11,14 +11,21 @@ if "--use-cython" in sys.argv:
     USE_CYTHON = True
     ext = ".pyx"
 
+VEO_LIB_DIR = os.getenv("VEO_LIB_DIR")
+if not VEO_LIB_DIR:
+    VEO_LIB_DIR = "/opt/nec/ve/veos/lib64"
+VEO_INC_DIR = os.getenv("VEO_INC_DIR")
+if not VEO_INC_DIR:
+    VEO_INC_DIR = "/opt/nec/ve/veos/include"
+
 
 _ext_mods=[
     Extension("veo._veo",
               sources=["veo/_veo" + ext],
               libraries=["veo"], # Unix-like specific
-              library_dirs=["veo", "/opt/nec/ve/veos/lib64"],
-              include_dirs=["veo", "/opt/nec/ve/veos/include", numpy.get_include()],
-              extra_link_args=["-Wl,-rpath=/opt/nec/ve/veos/lib64"]
+              library_dirs=["veo", VEO_LIB_DIR],
+              include_dirs=["veo", VEO_INC_DIR, numpy.get_include()],
+              extra_link_args=["-Wl,-rpath=%s" % VEO_LIB_DIR]
     ),
 ]
 
