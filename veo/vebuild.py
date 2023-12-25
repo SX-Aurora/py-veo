@@ -1,3 +1,33 @@
+#
+# * The source code in this file is based on the soure code of PyVEO.
+#
+# # NLCPy License #
+#
+#     Copyright (c) 2020 NEC Corporation
+#     All rights reserved.
+#
+#     Redistribution and use in source and binary forms, with or without
+#     modification, are permitted provided that the following conditions are met:
+#     * Redistributions of source code must retain the above copyright notice,
+#       this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above copyright notice,
+#       this list of conditions and the following disclaimer in the documentation
+#       and/or other materials provided with the distribution.
+#     * Neither NEC Corporation nor the names of its contributors may be
+#       used to endorse or promote products derived from this software
+#       without specific prior written permission.
+#
+#     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+#     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+#     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+#     DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+#     FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+#     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+#     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+#     ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+#     (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+#     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
 import collections
 import subprocess
 import os
@@ -5,25 +35,27 @@ from shutil import rmtree
 
 
 GLOBAL_SO_FLAGS = "-shared -pthread"
-MK_VEORUN_STATIC = os.getenv("MK_VEORUN_STATIC")
-if not MK_VEORUN_STATIC:
-    MK_VEORUN_STATIC = "/opt/nec/ve/libexec/mk_veorun_static"
+MK_VEORUN_STATIC = "/opt/nec/ve/libexec/mk_veorun_static"
 
-SUFFIX = { "C": ".c", "C++": ".cpp", "F": ".f90"}
-COMPILER = { "C": "/opt/nec/ve/bin/ncc",
-             "C++": "/opt/nec/ve/bin/nc++",
-             "F": "/opt/nec/ve/bin/nfort" }
-FLAGS = { "C": "-O2 -fpic -pthread -report-all -fdiag-vector=2",
-          "C++": "-O2 -fpic -pthread -finline -finline-functions -report-all -fdiag-vector=2",
-          "F": "-O2 -fpic -pthread -report-all -fdiag-vector=2" }
+SUFFIX = {"C": ".c", "C++": ".cpp", "F": ".f90"}
+COMPILER = {"C": "/opt/nec/ve/bin/ncc",
+            "C++": "/opt/nec/ve/bin/nc++",
+            "F": "/opt/nec/ve/bin/nfort"}
+FLAGS = {
+    "C": "-O2 -fpic -pthread -report-all -fdiag-vector=2",
+    "C++": "-O2 -fpic -pthread -finline -finline-functions -report-all -fdiag-vector=2",
+    "F": "-O2 -fpic -pthread -report-all -fdiag-vector=2"
+}
 
 
 def _shell_cmd(cmd, verbose=False):
-    if verbose: print(cmd)
+    if verbose:
+        print(cmd)
     try:
         out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
-        if verbose: print(out)
-        
+        if verbose:
+            print(out)
+
     except Exception as e:
         print("%r" % e)
         print("Command failed: %s" % e.cmd)
@@ -58,7 +90,7 @@ class VeObj(object):
             rc = _shell_cmd(cmd, verbose=verbose)
         except Exception as e:
             os.chdir(owd)
-            raise(e)
+            raise (e)
         if verbose and os.path.isfile(oname + ".L"):
             print("---------")
             with open(oname + ".L", "r") as f:
@@ -76,7 +108,7 @@ class VeObj(object):
         try:
             os.unlink(sname)
             os.unlink(oname + ".o")
-        except:
+        except Exception:
             pass
 
     def get_compiler(self):
@@ -111,7 +143,7 @@ class VeFtnObj(VeObj):
 
 
 class VeBuild(object):
-    _built = [] # built files, to be deleted by realclean()
+    _built = []  # built files, to be deleted by realclean()
 
     def __init__(self):
         self._obj = collections.OrderedDict()
@@ -122,7 +154,7 @@ class VeBuild(object):
 
     def set_cpp_src(self, label, content, flags=None, compiler=None):
         self._obj[label] = VeCppObj(content, flags=flags, compiler=compiler)
-    
+
     def set_ftn_src(self, label, content, flags=None, compiler=None):
         self._obj[label] = VeFtnObj(content, flags=flags, compiler=compiler)
 
@@ -152,7 +184,9 @@ class VeBuild(object):
         else:
             cmd = linker + " " + GLOBAL_SO_FLAGS
         cmd += " -o " + soname
-        cmd += " " + " ".join(["%s%s.o" % (self._blddir, src) for src in self._obj.keys()])
+        cmd += " " + " ".join(
+            ["%s%s.o" % (self._blddir, src) for src in self._obj.keys()]
+        )
         if libs:
             cmd += " " + " ".join(libs)
         if _shell_cmd(cmd, verbose=verbose):
@@ -178,7 +212,9 @@ class VeBuild(object):
         cmd = MK_VEORUN_STATIC + " " + oname
         if flags:
             cmd = "env CFLAGS=\"%s\" " % flags + cmd
-        cmd += " " + " ".join(["%s%s.o" % (self._blddir, src) for src in self._obj.keys()])
+        cmd += " " + " ".join(
+            ["%s%s.o" % (self._blddir, src) for src in self._obj.keys()]
+        )
         if libs:
             cmd += " " + " ".join(libs)
         if _shell_cmd(cmd, verbose=verbose):
@@ -202,7 +238,7 @@ class VeBuild(object):
             try:
                 os.unlink(file)
                 self._built.remove(file)
-            except:
+            except Exception:
                 pass
         if self._blddir != "":
             rmtree(self._blddir)
@@ -212,7 +248,8 @@ class VeBuild(object):
             return
         if os.path.isdir(self._blddir):
             if not os.access(self._blddir, os.W_OK | os.R_OK):
-                raise OSError("Directory '%s' exists but is not readable or writable!" % self._blddir)
+                raise OSError("Directory '%s' exists but is not readable "
+                              "or writable!" % self._blddir)
         else:
             os.mkdir(self._blddir)
 
@@ -232,8 +269,8 @@ class VeBuild(object):
             if otype == "C++":
                 _type = "C++"
             elif otype == "F":
-                if _type == "C": _type = "F"
+                if _type == "C":
+                    _type = "F"
         if _type is not None:
             return COMPILER[_type]
         raise ValueError("No linker. Did you define any sources?")
-
