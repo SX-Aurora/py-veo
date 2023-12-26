@@ -8,15 +8,15 @@ Name: %{name}
 Version: %{version}
 Release: %{release}
 Source0: %{name}-%{version}.tar.gz
-License: GPLv2
+License: BSD
 Group: Development/Libraries
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
 Prefix: %{_prefix}
 Vendor: Erich Focht <efocht@gmail.com>
 Packager: Erich Focht <efocht@gmail.com>
 Url: https://github.com/sx-aurora/py-veo
-Requires: veoffload
-BuildRequires: veoffload-devel
+Requires: veoffload-aveo
+BuildRequires: veoffload-aveo-devel
 
 %description
 This package provides python bindings to VEO: Vector Engine Offloading.

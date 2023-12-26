@@ -1,32 +1,12 @@
+# Copyright (c) 2018 - 2023 Erich Focht, NEC HPCE.
 #
-# * The source code in this file is based on the soure code of PyVEO.
+# Re-integrated and adapted code that has been derived from PyVEO and
+# used in NLCPY, therefore:
 #
 # # NLCPy License #
-#
 #     Copyright (c) 2020 NEC Corporation
-#     All rights reserved.
 #
-#     Redistribution and use in source and binary forms, with or without
-#     modification, are permitted provided that the following conditions are met:
-#     * Redistributions of source code must retain the above copyright notice,
-#       this list of conditions and the following disclaimer.
-#     * Redistributions in binary form must reproduce the above copyright notice,
-#       this list of conditions and the following disclaimer in the documentation
-#       and/or other materials provided with the distribution.
-#     * Neither NEC Corporation nor the names of its contributors may be
-#       used to endorse or promote products derived from this software
-#       without specific prior written permission.
-#
-#     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-#     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-#     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-#     DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-#     FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-#     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-#     LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-#     ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-#     (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-#     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# See LICENSE file for details.
 #
 
 # distutils: language = c++
@@ -296,21 +276,31 @@ cdef class VeoLibrary(object):
         self.func = dict()
         self.symbol = dict()
 
-    def get_symbol(self, char *symname):
+    def get_symbol(self, symname):
         cdef uint64_t res
+        if isinstance(symname, str):
+            symname = symname.encode()
+        elif not isinstance(symname, bytes):
+            raise TypeError("symname must be either a str or a bytes")
+
         res = veo_get_sym(self.proc.proc_handle, self.lib_handle, symname)
         if res == 0UL:
             raise RuntimeError("veo_get_sym '%s' failed" % symname)
-        self.symbol[<bytes>symname] = res
+        self.symbol[symname] = res
         return res
 
-    def find_function(self, char *symname):
+    def find_function(self, symname):
         cdef uint64_t res
+        if isinstance(symname, str):
+            symname = symname.encode()
+        elif not isinstance(symname, bytes):
+            raise TypeError("symname must be either a str or a bytes")
+
         res = veo_get_sym(self.proc.proc_handle, self.lib_handle, symname)
         if res == 0UL:
             raise RuntimeError("veo_get_sym '%s' failed" % symname)
-        func = VeoFunction(self, res, <bytes>symname)
-        self.func[<bytes>symname] = func
+        func = VeoFunction(self, res, symname)
+        self.func[symname] = func
         return func
 
 
@@ -522,12 +512,16 @@ cdef class VeoProc(object):
     def i64_to_addr(self, int64_t x):
         return ConvFromI64.to_ulong(x)
 
-    def load_library(self, char *libname):
+    def load_library(self, libname):
+        if isinstance(libname, str):
+            libname = libname.encode('utf-8')
+        elif not isinstance(libname, bytes):
+            raise TypeError("ilibname must be either a str or a bytes")
         cdef uint64_t res = veo_load_library(self.proc_handle, libname)
         if res == 0UL:
             raise RuntimeError("veo_load_library '%s' failed" % libname)
-        lib = VeoLibrary(self, <bytes> libname, res)
-        self.lib[<bytes>libname] = lib
+        lib = VeoLibrary(self, libname, res)
+        self.lib[libname] = lib
         return lib
 
     def unload_library(self, VeoLibrary lib):

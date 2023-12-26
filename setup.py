@@ -4,7 +4,7 @@ from distutils.extension import Extension
 import numpy
 
 USE_CYTHON = False
-ext = ".c"
+ext = ".cpp"
 if "--use-cython" in sys.argv:
     from Cython.Build import cythonize
     sys.argv.remove("--use-cython")
@@ -53,7 +53,7 @@ setup(
     packages = [ "veo", "veo.logging" ],
     author = "Erich Focht",
     author_email = "efocht@gmail.com",
-    license = "GPLv2",
+    license = "BSD",
     requires = ["future","numpy", "psutil"],
     description = "Python bindings for the VE Offloading API",
     url = "https://github.com/sx-aurora/py-veo",
@@ -65,7 +65,7 @@ setup(
       'Intended Audience :: Education',
       'Intended Audience :: Developers',
       'Intended Audience :: Science/Research',
-      'License :: OSI Approved :: GNU General Public License (GPL)',
+      'License :: OSI Approved :: BSD License',
       'Operating System :: POSIX :: Linux',
       'Programming Language :: Python',
       'Topic :: Software Development :: Libraries :: Python Modules'
