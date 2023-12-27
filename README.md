@@ -463,3 +463,14 @@ make srpm
 # this step needs to be done outside a virtualenv!
 rpmbuild --rebuild *.src.rpm
 ```
+
+
+For the maintainer: build with cibuildwheel in docker container(s):
+```
+export CIBW_BEFORE_ALL='ln -s /host/opt/nec /opt/nec'
+export CIBW_BEFORE_BUILD='pip install -r requirements.txt'
+export CIBW_MANYLINUX_X86_64_IMAGE=quay.io/pypa/manylinux_2_28_x86_64
+cibuildwheel --platform linux --archs x86_64
+```
+Look into the `wheelhouse` directory and upload to upload to PyPi with
+`twine upload ...`.
